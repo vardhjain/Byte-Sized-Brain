@@ -1,0 +1,16 @@
+# Core ML frameworks
+tensorflow>=2.13.0           # training & TFLite conversion
+torch>=2.0.0                 # ONNX export for DistilBERT
+
+# Model runtimes
+onnxruntime>=1.15.0          # ONNX inference on CPU
+transformers>=4.45.0         # HuggingFace Transformers (DistilBERT)
+datasets>=2.16.0             # HF Datasets (IMDB, etc.)
+
+# Utilities
+numpy>=1.24.0
+psutil>=5.9.0                # RAM measurements
+pyrapl>=0.4.0                # (optional) energy profiling on Linux
+
+# Optional (if you fine-tune with Trainer)
+accelerate>=0.20.0
