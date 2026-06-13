@@ -121,12 +121,17 @@ bsb demo distilbert_imdb        # built-in example reviews, or pass your own (qu
 ```
 variant       prediction    conf    latency      size
 ----------------------------------------------------
-fp32          POSITIVE    97.8%    51.51ms  255.55MB
-int8          POSITIVE    97.5%    24.83ms   64.27MB
+fp32          POSITIVE    97.6%   128.13ms  255.55MB
+int8          POSITIVE    97.3%    72.65ms   64.27MB
 ```
 
-Same verdict, **4× smaller and ~2× faster**. There's also a one-screen Streamlit
-UI: `pip install -e ".[demo]"` then `streamlit run demo/app.py`.
+Same verdict, **4× smaller and ~1.7× faster** (absolute latency varies with
+machine load; the rigorous 500-sample figures are in the [results](#results) above).
+
+There's also a one-screen **Streamlit** UI — `pip install -e ".[demo]"` then
+`streamlit run demo/app.py`:
+
+![Streamlit FP32-vs-INT8 sentiment demo](docs/images/streamlit_demo.png)
 
 ## How it's measured
 
