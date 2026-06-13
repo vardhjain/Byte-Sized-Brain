@@ -49,13 +49,27 @@ class Pipeline(ABC):
         """Benchmark every variant; return result rows."""
 
 
-def export_savedmodel(model, dest: Path) -> Path:
-    """Export a Keras model to a TF SavedModel dir (Keras 3: ``model.export``)."""
+def export_savedmodel(model, dest: Path, *, input_signature=None) -> Path:
+    """Export a Keras model to a TF SavedModel dir (Keras 3: ``model.export``).
+
+    Pass ``input_signature`` to pin a static input shape. The LSTM pipeline needs
+    a static batch dimension so its ``TensorListReserve`` lowers to the native
+    ``UnidirectionalSequenceLSTM`` builtin — otherwise the converter falls back to
+    TF-Select (Flex) ops that the Python/edge interpreters can't execute.
+    """
     dest = Path(dest)
     if dest.exists():
         shutil.rmtree(dest)
     dest.parent.mkdir(parents=True, exist_ok=True)
-    model.export(str(dest))
+    if input_signature is None:
+        model.export(str(dest))
+    else:
+        import keras
+
+        archive = keras.export.ExportArchive()
+        archive.track(model)
+        archive.add_endpoint(name="serve", fn=model.call, input_signature=input_signature)
+        archive.write_out(str(dest))
     return dest
 
 
