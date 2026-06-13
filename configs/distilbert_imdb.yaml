@@ -1,0 +1,38 @@
+# DistilBERT fine-tune on IMDB → FP32 vs dynamic INT8 ONNX.
+name: distilbert_imdb
+framework: pytorch
+modality: nlp
+dataset: imdb
+model: distilbert-base-uncased
+seed: 42
+
+data:
+  max_len: 128
+
+train:
+  epochs: 2
+  batch_size: 16
+  learning_rate: 0.00002
+  train_subset: 3000
+  eval_subset: 500
+  num_proc: 1
+
+convert:
+  quantization: dynamic_int8
+  opset: 14
+
+benchmark:
+  num_samples: 500
+  warmup: 5
+
+smoke:
+  data:
+    max_len: 64
+  train:
+    epochs: 1
+    batch_size: 8
+    train_subset: 200
+    eval_subset: 100
+  benchmark:
+    num_samples: 50
+    warmup: 2
