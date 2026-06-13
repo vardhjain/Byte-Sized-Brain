@@ -50,7 +50,11 @@ class TFLiteRunner:
     def predict(self, x: np.ndarray) -> np.ndarray:
         arr = np.asarray(x, dtype=np.float32)
         if np.issubdtype(self._in_dtype, np.integer) and self._scale:
-            arr = np.round(arr / self._scale + self._zero_point).astype(self._in_dtype)
+            # Saturate like TFLite's quantize op: clamp(round(r/s)+zp, qmin, qmax).
+            # A bare .astype(int8) would *wrap* (e.g. 128 -> -128) on boundary values.
+            q = np.round(arr / self._scale + self._zero_point)
+            info = np.iinfo(self._in_dtype)
+            arr = np.clip(q, info.min, info.max).astype(self._in_dtype)
         else:
             arr = arr.astype(self._in_dtype)
         self.interp.set_tensor(self._in["index"], arr[None, ...])

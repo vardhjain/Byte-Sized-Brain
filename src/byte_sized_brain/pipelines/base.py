@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
+
 from ..benchmark import TFLiteRunner, benchmark_inference, build_row
 from ..utils import get_logger, size_mb
 
@@ -76,8 +78,8 @@ def export_savedmodel(model, dest: Path, *, input_signature=None) -> Path:
 def tflite_benchmark(
     cfg: PipelineConfig,
     variants: Sequence[Variant],
-    samples: Sequence[Any],
-    labels: Sequence[int],
+    samples: Sequence[Any] | np.ndarray,
+    labels: Sequence[int] | np.ndarray,
     decision_fn: Callable[[Any], int],
 ) -> list[dict[str, Any]]:
     """Benchmark a set of TFLite variants against shared eval data."""

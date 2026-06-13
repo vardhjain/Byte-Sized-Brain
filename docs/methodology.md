@@ -127,6 +127,10 @@ converted artifacts directly.
 - **Smoke vs full** — every config has a `smoke:` block; `--smoke` runs a
   1-epoch, few-sample version end-to-end in seconds (used by CI). Full runs use
   the base config.
+- **Clean history** — the original repo committed large binaries (a 67 MB ONNX,
+  SavedModels, HuggingFace checkpoints, TensorBoard `runs/`). These were purged
+  from git history with `git filter-repo` and force-pushed, shrinking the clone
+  from ~78 MB to ~1 MB. A full pre-rewrite backup bundle is kept outside the repo.
 
 ## 5. Limitations (stated honestly)
 
@@ -135,7 +139,13 @@ converted artifacts directly.
   CPU-prohibitive, so the committed CNN config is a **frozen-backbone
   feature-extraction baseline** (`fine_tune_epochs: 0`, `train_subset: 12000`).
   Higher absolute CNN accuracy is available by unfreezing the backbone on a GPU —
-  the *quantization* size/latency story is unaffected by absolute accuracy.
+  the *size* story is unaffected by absolute accuracy.
+- **MobileNetV2 is PTQ-sensitive.** Unlike the other three models (which retain
+  accuracy within ~2% after quantization), the CNN's static-INT8 variant shows a
+  notable accuracy drop. This is a real, documented characteristic — depthwise
+  separable convolutions quantize poorly under per-tensor full-integer PTQ — not a
+  bug. It is exactly the kind of architecture-dependent trade-off this project
+  exists to surface; see the per-pipeline `accuracy_delta` in the results.
 - Emulated-ARM latency is indicative of correctness and relative behaviour, not
   absolute speed (see §3, Layer A).
 - TensorFlow aarch64 wheel availability varies by version; if `tensorflow` won't
