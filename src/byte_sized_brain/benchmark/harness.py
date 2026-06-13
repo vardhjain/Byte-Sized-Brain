@@ -26,8 +26,8 @@ import psutil
 
 def benchmark_inference(
     predict_fn: Callable[[Any], Any],
-    samples: Sequence[Any],
-    labels: Sequence[int],
+    samples: Sequence[Any] | np.ndarray,
+    labels: Sequence[int] | np.ndarray,
     *,
     num_samples: int,
     warmup: int = 5,

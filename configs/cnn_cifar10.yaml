@@ -23,7 +23,7 @@ train:
 
 convert:
   quantization: static_int8
-  rep_samples: 100
+  rep_samples: 250  # more calibration data — MobileNetV2 is PTQ-sensitive
   int8_io: true
 
 benchmark:
