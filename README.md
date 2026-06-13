@@ -110,6 +110,24 @@ Real ARM latency without a Raspberry Pi: run the same commands on a free **Oracl
 Ampere A1** or **AWS Graviton** instance — results are stamped `emulated=false`.
 Full instructions (and a real-Pi appendix) in [docs/methodology.md](docs/methodology.md).
 
+### Try it: FP32 vs INT8 live
+
+Classify a review through both precisions side by side:
+
+```bash
+bsb run distilbert_imdb                 # produce the artifacts (once)
+bsb demo distilbert_imdb "best film I've seen all year — gorgeous and gripping"
+```
+```
+variant       prediction    conf    latency      size
+----------------------------------------------------
+fp32          POSITIVE    97.7%    69.81ms  255.55MB
+int8          POSITIVE    97.5%    41.91ms   64.27MB
+```
+
+Same verdict, **4× smaller, ~1.7× faster**. There's also a one-screen Streamlit
+UI: `pip install -e ".[demo]"` then `streamlit run demo/app.py`.
+
 ## How it's measured
 
 One harness measures every variant identically: accuracy, latency

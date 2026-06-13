@@ -94,6 +94,18 @@ def cmd_report(_: argparse.Namespace) -> int:
     return 0 if out else 1
 
 
+def cmd_demo(args: argparse.Namespace) -> int:
+    from .demo import format_rows, run_demo
+
+    try:
+        rows = run_demo(args.pipeline, args.text or None, config=args.config)
+    except FileNotFoundError as exc:
+        log.error("%s", exc)
+        return 1
+    print(format_rows(rows))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="bsb", description="Byte-Sized Brain CLI")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
@@ -117,6 +129,13 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("info", help="print system + library versions")
     sub.add_parser("list", help="list available pipelines")
 
+    demo = sub.add_parser("demo", help="FP32-vs-INT8 sentiment demo on a review")
+    demo.add_argument("pipeline", choices=["distilbert_imdb", "rnn_imdb"])
+    demo.add_argument(
+        "text", nargs="*", help="review(s) to classify; quote each (default: built-in examples)"
+    )
+    demo.add_argument("--config", default=None)
+
     args = parser.parse_args(argv)
 
     if args.command == "info":
@@ -125,6 +144,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_list(args)
     if args.command == "report":
         return cmd_report(args)
+    if args.command == "demo":
+        return cmd_demo(args)
 
     try:
         _run_stages(args.pipeline, args, stage_map[args.command])
