@@ -47,8 +47,11 @@ def _softmax(x: np.ndarray) -> np.ndarray:
     return e / e.sum()
 
 
-def _timed(fn, *, repeats: int = 5) -> tuple[object, float]:
-    fn()  # warm up
+def _timed(fn, *, repeats: int = 15) -> tuple[object, float]:
+    # Report the best of several runs: a single timing is dominated by CPU
+    # contention/cold-start noise, which can even make INT8 look slower than FP32.
+    for _ in range(3):  # warm up (kernels, dynamic-quant scales, caches)
+        fn()
     out = None
     best = float("inf")
     for _ in range(repeats):
