@@ -1,0 +1,32 @@
+# Feed-forward net on MNIST → FP32 vs static INT8 TFLite.
+name: ffn_mnist
+framework: tensorflow
+modality: vision
+dataset: mnist
+model: ffn
+seed: 42
+
+train:
+  epochs: 5
+  batch_size: 128
+  validation_split: 0.1
+
+convert:
+  quantization: static_int8
+  rep_samples: 100
+  int8_io: true
+
+benchmark:
+  num_samples: 1000
+  warmup: 5
+
+# Fast end-to-end path used by CI / `--smoke`.
+smoke:
+  train:
+    epochs: 1
+    train_subset: 4000
+  convert:
+    rep_samples: 50
+  benchmark:
+    num_samples: 200
+    warmup: 2

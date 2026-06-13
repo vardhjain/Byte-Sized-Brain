@@ -1,0 +1,40 @@
+# MobileNetV2 (transfer learning) on CIFAR-10 → FP32 vs static INT8 TFLite.
+name: cnn_cifar10
+framework: tensorflow
+modality: vision
+dataset: cifar10
+model: mobilenetv2
+seed: 42
+
+data:
+  img_size: 96
+
+train:
+  epochs: 10
+  fine_tune_epochs: 5
+  batch_size: 128
+  learning_rate: 0.001
+  fine_tune_lr: 0.0001
+  validation_split: 0.2
+
+convert:
+  quantization: static_int8
+  rep_samples: 100
+  int8_io: true
+
+benchmark:
+  num_samples: 1000
+  warmup: 5
+
+smoke:
+  train:
+    epochs: 1
+    fine_tune_epochs: 0
+    batch_size: 32
+    train_subset: 500
+    eval_subset: 200
+  convert:
+    rep_samples: 50
+  benchmark:
+    num_samples: 100
+    warmup: 2
