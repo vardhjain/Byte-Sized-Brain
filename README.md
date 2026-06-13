@@ -115,17 +115,17 @@ Full instructions (and a real-Pi appendix) in [docs/methodology.md](docs/methodo
 Classify a review through both precisions side by side:
 
 ```bash
-bsb run distilbert_imdb                 # produce the artifacts (once)
-bsb demo distilbert_imdb "best film I've seen all year — gorgeous and gripping"
+bsb run distilbert_imdb         # produce the artifacts (once)
+bsb demo distilbert_imdb        # built-in example reviews, or pass your own (quoted)
 ```
 ```
 variant       prediction    conf    latency      size
 ----------------------------------------------------
-fp32          POSITIVE    97.7%    69.81ms  255.55MB
-int8          POSITIVE    97.5%    41.91ms   64.27MB
+fp32          POSITIVE    97.8%    51.51ms  255.55MB
+int8          POSITIVE    97.5%    24.83ms   64.27MB
 ```
 
-Same verdict, **4× smaller, ~1.7× faster**. There's also a one-screen Streamlit
+Same verdict, **4× smaller and ~2× faster**. There's also a one-screen Streamlit
 UI: `pip install -e ".[demo]"` then `streamlit run demo/app.py`.
 
 ## How it's measured
