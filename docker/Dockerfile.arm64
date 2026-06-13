@@ -1,0 +1,43 @@
+# aarch64 (ARM64) image — the Raspberry Pi's architecture, the cloud Graviton/
+# Ampere architecture. Build/run under QEMU emulation on an x86 host, or natively
+# on real ARM hardware.
+#
+#   # one-time: register QEMU binfmt handlers
+#   docker run --privileged --rm tonistiigi/binfmt --install arm64
+#   docker buildx build --platform linux/arm64 -f docker/Dockerfile.arm64 -t bsb:arm64 --load .
+#   docker run --rm --platform linux/arm64 \
+#       -e BSB_EMULATED=1 -e BSB_DEVICE=qemu-arm64 \
+#       -v "$PWD/benchmarks/results:/app/benchmarks/results" \
+#       bsb:arm64 bsb run all --smoke
+#
+# On a *real* ARM box (Oracle Ampere A1 / AWS Graviton / Raspberry Pi 64-bit) drop
+# `--platform` and `BSB_EMULATED`; the harness then stamps emulated=false.
+#
+# NOTE: PyTorch + ONNX Runtime ship aarch64 wheels, so the DistilBERT (ONNX) and
+# TFLite pipelines run here. TensorFlow's aarch64 wheel availability varies by
+# version — see docs/methodology.md for the fallback if `tensorflow` won't install.
+FROM --platform=linux/arm64 python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    TF_CPP_MIN_LOG_LEVEL=2 \
+    TF_ENABLE_ONEDNN_OPTS=0 \
+    TOKENIZERS_PARALLELISM=false
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential git && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt ./
+RUN pip install --index-url https://download.pytorch.org/whl/cpu torch==2.7.0 && \
+    pip install -r requirements.txt
+
+COPY pyproject.toml README.md ./
+COPY src ./src
+COPY configs ./configs
+COPY Makefile ./
+RUN pip install -e .
+
+CMD ["bsb", "run", "all", "--smoke"]
