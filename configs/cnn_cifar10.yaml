@@ -10,12 +10,16 @@ data:
   img_size: 96
 
 train:
-  epochs: 10
-  fine_tune_epochs: 5
+  # CPU-feasible feature-extraction baseline (frozen MobileNetV2 backbone).
+  # Full-dataset backbone fine-tuning (fine_tune_epochs > 0, train_subset null)
+  # is much stronger but wants a GPU — see docs/methodology.md.
+  epochs: 6
+  fine_tune_epochs: 0
   batch_size: 128
   learning_rate: 0.001
   fine_tune_lr: 0.0001
   validation_split: 0.2
+  train_subset: 12000
 
 convert:
   quantization: static_int8

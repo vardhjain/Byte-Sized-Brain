@@ -1,4 +1,5 @@
-# LSTM on IMDB → FP32 vs dynamic-range TFLite (needs TF-Select / Flex ops).
+# LSTM on IMDB → FP32 vs dynamic-range TFLite.
+# Exported with a static batch so the LSTM uses the native builtin op (no Flex).
 name: rnn_imdb
 framework: tensorflow
 modality: sequence
@@ -11,13 +12,12 @@ data:
   max_len: 200
 
 train:
-  epochs: 5
-  batch_size: 32
+  epochs: 4
+  batch_size: 64
   validation_split: 0.2
 
 convert:
   quantization: dynamic_range
-  flex_ops: true
 
 benchmark:
   num_samples: 500

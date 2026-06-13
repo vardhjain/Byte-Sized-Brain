@@ -1,9 +1,12 @@
 """RNN (LSTM) on IMDB — FP32 TFLite vs dynamic-range TFLite.
 
-The LSTM needs the TF-Select (Flex) runtime, so full-integer PTQ isn't available;
-the honest quantized variant is **dynamic-range** (INT8 weights, FP32 activations).
-Both variants are labelled accordingly — no "INT8" mislabelling, and no random
-calibration data (see ``data/imdb.py``).
+The SavedModel is exported with a **static batch dimension** so the LSTM lowers
+to the native ``UnidirectionalSequenceLSTM`` builtin — the model then runs on the
+plain TFLite/LiteRT interpreter (and on ARM) with no TF-Select/Flex delegate.
+
+Full-integer PTQ isn't well-supported for LSTM, so the honest quantized variant
+is **dynamic-range** (INT8 weights, FP32 activations) — labelled as such, not
+mislabelled "INT8", and calibrated on real data, never random noise.
 """
 
 from __future__ import annotations
@@ -28,6 +31,7 @@ class RNNImdb(Pipeline):
         return (cfg.data.num_words or 10000, cfg.data.max_len or 200)
 
     def train(self, cfg: PipelineConfig, paths: Paths) -> float:
+        import tensorflow as tf
         from tensorflow.keras import callbacks
 
         from ..data.imdb import load_imdb
@@ -50,7 +54,12 @@ class RNNImdb(Pipeline):
             verbose=2,
         )
         _, acc = model.evaluate(x_test, y_test, verbose=0)
-        export_savedmodel(model, paths.fp32_source)
+        # Static batch=1 signature -> native builtin LSTM (no Flex delegate needed).
+        export_savedmodel(
+            model,
+            paths.fp32_source,
+            input_signature=[tf.TensorSpec(shape=(1, max_len), dtype=tf.float32)],
+        )
         return float(acc)
 
     def variants(self, cfg: PipelineConfig, paths: Paths) -> list[Variant]:
@@ -62,8 +71,9 @@ class RNNImdb(Pipeline):
     def convert(self, cfg: PipelineConfig, paths: Paths) -> list[Variant]:
         from ..convert import tflite
 
-        tflite.to_fp32(paths.fp32_source, paths.tflite("fp32"), flex=True)
-        tflite.to_dynamic_range(paths.fp32_source, paths.tflite("dynamic_range"), flex=True)
+        # Static-batch export already lowered the LSTM to builtins; no Flex needed.
+        tflite.to_fp32(paths.fp32_source, paths.tflite("fp32"))
+        tflite.to_dynamic_range(paths.fp32_source, paths.tflite("dynamic_range"))
         return self.variants(cfg, paths)
 
     def benchmark(self, cfg: PipelineConfig, paths: Paths) -> list[dict[str, Any]]:
