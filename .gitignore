@@ -10,8 +10,10 @@ artifacts/
 *.savedmodel/
 saved_model/
 
-# Dataset caches downloaded at runtime
-data/
+# Dataset caches downloaded at runtime (root-level only — must NOT match the
+# src/byte_sized_brain/data package!). Datasets actually cache to ~/.keras and
+# ~/.cache/huggingface, but keep a root /data/ guard just in case.
+/data/
 .keras/
 .cache/
 *.npz

@@ -44,24 +44,14 @@ jobs:
           cache: pip
       - name: Install with TensorFlow extra
         run: pip install -e ".[tf,dev]"
-      # Gate: deterministic, network-free convert -> run roundtrip (fast, reliable).
-      - name: Conversion smoke (gate)
+      # Deterministic, network-free convert -> run roundtrip.
+      - name: Conversion smoke
         run: pytest -m tf -q
-      # Non-blocking: full real-data train->convert->benchmark. Surfaces its own
-      # traceback as a CI annotation if it fails, without failing the build (the
-      # full suite downloads datasets + trains, so it lives in `make smoke` locally).
-      - name: Full real-data pipeline smoke (diagnostic, non-blocking)
-        continue-on-error: true
-        run: |
-          set +e
-          pytest -m smoke -rA --tb=short > smoke.log 2>&1
-          code=$?
-          tail -n 80 smoke.log
-          if [ "$code" -ne 0 ]; then
-            msg=$(tail -n 50 smoke.log | sed 's/%/%25/g; s/\r//g' | awk '{printf "%s%%0A", $0}')
-            echo "::error title=real-smoke-diagnostic::${msg}"
-          fi
-          exit 0
+      # Real end-to-end train->convert->benchmark for the two lightest pipelines
+      # (MNIST + IMDB). Imports byte_sized_brain.data, so a missing-package
+      # regression fails here. Heavy CIFAR/DistilBERT runs stay in `make smoke`.
+      - name: Real pipeline smoke (FFN/MNIST + RNN/IMDB)
+        run: pytest -m smoke -k "ffn_mnist or rnn_imdb" -q
 
   arm64-smoke:
     name: ARM64 emulation smoke (QEMU)
