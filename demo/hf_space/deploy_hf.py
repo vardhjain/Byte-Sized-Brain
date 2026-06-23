@@ -73,7 +73,7 @@ def main() -> int:
             )
 
     print(f"Creating Space {space_repo} ...")
-    api.create_repo(space_repo, repo_type="space", space_sdk="streamlit", exist_ok=True)
+    api.create_repo(space_repo, repo_type="space", space_sdk="gradio", exist_ok=True)
     for name in ("app.py", "requirements.txt", "README.md"):
         api.upload_file(
             path_or_fileobj=str(SPACE_DIR / name),

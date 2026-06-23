@@ -3,7 +3,7 @@ title: Byte-Sized Brain FP32 vs INT8
 emoji: 🧠
 colorFrom: indigo
 colorTo: blue
-sdk: streamlit
+sdk: gradio
 app_file: app.py
 pinned: false
 license: mit

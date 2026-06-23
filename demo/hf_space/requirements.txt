@@ -1,4 +1,4 @@
-streamlit>=1.30
+gradio>=4.0
 onnxruntime>=1.16
 transformers>=4.45
 huggingface_hub>=0.23
