@@ -6,7 +6,7 @@ the original Raspberry Pi with a reproducible cross-architecture benchmark.
 ## 1. What we measure
 
 For every model variant the shared harness
-([`benchmark/harness.py`](../src/byte_sized_brain/benchmark/harness.py)) records,
+([`benchmark/harness.py`](https://github.com/vardhjain/Byte-Sized-Brain/blob/Byte-Sized-Brain/src/byte_sized_brain/benchmark/harness.py)) records,
 identically across TFLite and ONNX Runtime:
 
 | Metric | Definition |

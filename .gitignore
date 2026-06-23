@@ -95,3 +95,6 @@ Thumbs.db
 
 # Jupyter
 .ipynb_checkpoints
+
+# mkdocs build output
+/site/
