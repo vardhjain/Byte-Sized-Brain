@@ -9,7 +9,7 @@ you in accuracy? One reproducible toolkit trains four models, quantizes each wit
 technique that fits it, and measures size, accuracy, latency, and memory the same way for
 all of them, on x86 and ARM64.
 
-**[📊 Results](docs/report.md)** &nbsp;·&nbsp; **[📐 Methodology](docs/methodology.md)** &nbsp;·&nbsp; **[▶ Demo](#see-it-for-yourself)**
+**[📖 Docs](https://vardhjain.github.io/Byte-Sized-Brain/)** &nbsp;·&nbsp; **[📊 Results](docs/report.md)** &nbsp;·&nbsp; **[📐 Methodology](docs/methodology.md)** &nbsp;·&nbsp; **[▶ Demo](#see-it-for-yourself)**
 
 [![CI](https://github.com/vardhjain/Byte-Sized-Brain/actions/workflows/ci.yml/badge.svg)](https://github.com/vardhjain/Byte-Sized-Brain/actions/workflows/ci.yml)
 [![python](https://img.shields.io/badge/python-3.10%2B-blue)](pyproject.toml)
