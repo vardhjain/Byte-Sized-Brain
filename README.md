@@ -1,10 +1,30 @@
-# Byte-Sized Brain
+<div align="center">
 
-*How much smaller and faster does quantization really make a model, and what does it cost you in accuracy? This puts hard numbers on that trade-off across four very different models.*
+# 🧠 Byte-Sized Brain
+
+### Post-training quantization, measured honestly across four model families
+
+How much smaller and faster does quantization really make a model, and what does it cost
+you in accuracy? One reproducible toolkit trains four models, quantizes each with the
+technique that fits it, and measures size, accuracy, latency, and memory the same way for
+all of them, on x86 and ARM64.
+
+**[📊 Results](docs/report.md)** &nbsp;·&nbsp; **[📐 Methodology](docs/methodology.md)** &nbsp;·&nbsp; **[▶ Demo](#see-it-for-yourself)**
 
 [![CI](https://github.com/vardhjain/Byte-Sized-Brain/actions/workflows/ci.yml/badge.svg)](https://github.com/vardhjain/Byte-Sized-Brain/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
+[![python](https://img.shields.io/badge/python-3.10%2B-blue)](pyproject.toml)
+[![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![code style: ruff](https://img.shields.io/badge/style-ruff-261230)](https://github.com/astral-sh/ruff)
+[![typing: mypy](https://img.shields.io/badge/typing-mypy-2a6db2)](pyproject.toml)
+
+</div>
+
+> [!NOTE]
+> New here? The honest version of every number, including where quantization hurts and the
+> x86-versus-ARM caveats, lives in [docs/methodology.md](docs/methodology.md). Measuring
+> these trade-offs fairly is the whole point of the project.
+
+---
 
 Quantization (shrinking a model from 32-bit floats down to 8-bit integers) is the
 quickest win in on-device ML, but "smaller and faster" is hand-wavy. Byte-Sized Brain
@@ -14,7 +34,7 @@ it, and measures size, accuracy, latency, and memory the **same way for all of t
 You get one command per model, reproducible results, and a straight answer on where
 quantization pays off and where it bites.
 
-## Results
+## 📊 Results
 
 <!-- RESULTS_TABLE -->
 
@@ -47,7 +67,7 @@ the transformer, INT8 was also about **1.7× faster**. The full breakdown lives 
 > emulated through Docker or on a real cloud ARM box, and it stamps each result with its
 > architecture so emulated and native numbers never get quietly mixed together.
 
-## The four models
+## 🧩 The four models
 
 It spans three modalities, two frameworks, and two runtimes, each paired with the
 quantization approach that fits it.
@@ -59,7 +79,7 @@ quantization approach that fits it.
 | `rnn_imdb` | IMDB | an LSTM sentiment classifier | TensorFlow → TFLite | FP32 → **dynamic-range** |
 | `distilbert_imdb` | IMDB | a DistilBERT transformer | PyTorch → ONNX Runtime | FP32 → **dynamic INT8** |
 
-## Try it
+## ▶ Try it
 
 ```bash
 git clone https://github.com/vardhjain/Byte-Sized-Brain
@@ -116,7 +136,7 @@ There is a one-screen web version too. Run `pip install -e ".[demo]"`, then
 
 ![Streamlit FP32-vs-INT8 sentiment demo](docs/images/streamlit_demo.png)
 
-## Running on the edge
+## 🛰️ Running on the edge
 
 The original plan benchmarked on a Raspberry Pi. The Pi is gone, so instead the whole
 thing runs on ARM64 two ways, both reproducible by anyone.
@@ -131,7 +151,7 @@ Ampere** or **AWS Graviton** instance, and those results come back tagged
 `emulated=false`. Step-by-step instructions (and a real-Pi appendix) are in
 [docs/methodology.md](docs/methodology.md).
 
-## How the numbers are measured
+## 📐 How the numbers are measured
 
 One harness measures every model the same way, recording accuracy, latency (mean, p50,
 and p95), and memory at the **process** level rather than whole-machine, which is far
@@ -141,7 +161,7 @@ for repeatability, and the calibration data for static quantization is **real sa
 not random noise** (a subtle bug worth getting right). More detail is in
 [docs/methodology.md](docs/methodology.md).
 
-## What's in the box
+## 📦 What's in the box
 
 ```
 configs/                 # one YAML per model (+ fast "smoke" overrides)
@@ -159,7 +179,7 @@ docs/                    # methodology, generated report, charts
 artifacts/               # trained models, gitignored and regenerated on demand
 ```
 
-## What this project shows
+## ✨ What this project shows
 
 A few things are packed into a small, honest repo.
 
@@ -172,7 +192,7 @@ A few things are packed into a small, honest repo.
 - **Engineered, not scripted.** Config files, fixed seeds, pinned dependencies, a real
   CLI, tests, and CI that actually trains a model end-to-end.
 
-## Reproducibility
+## ♻️ Reproducibility
 
 `requirements.txt` pins an exact, known-good environment, with lighter
 `pip install -e ".[tf]"` and `".[torch]"` extras in `pyproject.toml`. Runs are
@@ -181,6 +201,6 @@ One honest note is that the CNN config is a CPU-feasible, frozen-backbone baseli
 is fine for the quantization story but is not a from-scratch accuracy record (details in
 the methodology, §5).
 
-## License
+## 📄 License
 
 [MIT](LICENSE) © 2026 Vardh Jain
