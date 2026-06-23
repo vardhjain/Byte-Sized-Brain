@@ -9,8 +9,9 @@ you in accuracy? One reproducible toolkit trains four models, quantizes each wit
 technique that fits it, and measures size, accuracy, latency, and memory the same way for
 all of them, on x86 and ARM64.
 
-**[📖 Docs](https://vardhjain.github.io/Byte-Sized-Brain/)** &nbsp;·&nbsp; **[📊 Results](docs/report.md)** &nbsp;·&nbsp; **[📐 Methodology](docs/methodology.md)** &nbsp;·&nbsp; **[▶ Demo](#see-it-for-yourself)**
+**[🤗 Live demo](https://huggingface.co/spaces/vardhjain20/byte-sized-brain-demo)** &nbsp;·&nbsp; **[📖 Docs](https://vardhjain.github.io/Byte-Sized-Brain/)** &nbsp;·&nbsp; **[📊 Results](docs/report.md)** &nbsp;·&nbsp; **[📐 Methodology](docs/methodology.md)**
 
+[![Live Demo](https://img.shields.io/badge/%F0%9F%A4%97-Live%20Demo-yellow)](https://huggingface.co/spaces/vardhjain20/byte-sized-brain-demo)
 [![CI](https://github.com/vardhjain/Byte-Sized-Brain/actions/workflows/ci.yml/badge.svg)](https://github.com/vardhjain/Byte-Sized-Brain/actions/workflows/ci.yml)
 [![python](https://img.shields.io/badge/python-3.10%2B-blue)](pyproject.toml)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -131,8 +132,9 @@ int8          POSITIVE    97.3%    72.65ms   64.27MB
 Same answer, **4× smaller and ~1.7× faster**. (Latency wanders a bit with machine load.
 The careful 500-sample figures are in the results table above.)
 
-There is a one-screen web version too. Run `pip install -e ".[demo]"`, then
-`streamlit run demo/app.py`.
+There is a web version too. Try it hosted with nothing to install at the
+[Gradio Space](https://huggingface.co/spaces/vardhjain20/byte-sized-brain-demo), or run
+the local Streamlit app with `pip install -e ".[demo]"` and then `streamlit run demo/app.py`.
 
 ![Streamlit FP32-vs-INT8 sentiment demo](docs/images/streamlit_demo.png)
 
