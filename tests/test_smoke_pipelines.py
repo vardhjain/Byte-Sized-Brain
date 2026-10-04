@@ -2,7 +2,7 @@
 
 Marked ``smoke`` (and skipped unless the needed framework is installed). Run with:
     pytest -m smoke
-These download datasets and train for one epoch, so they are slow — the default
+These download datasets and train for one epoch, so they are slow. The default
 ``pytest -m "not smoke"`` lane skips them.
 """
 

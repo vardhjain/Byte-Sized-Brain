@@ -1,5 +1,5 @@
 # LSTM on IMDB → FP32 vs dynamic-range TFLite.
-# Exported with a static batch so the LSTM uses the native builtin op (no Flex).
+# Exported with a static batch so the LSTM converts to builtin ops (no Flex delegate).
 name: rnn_imdb
 framework: tensorflow
 modality: sequence

@@ -4,7 +4,7 @@ A short summary of the change and why.
 
 ## Checklist
 
-- [ ] `make lint`, `make typecheck`, and `make test` pass locally
+- [ ] `make check` passes locally (lint, formatting, types and fast tests)
 - [ ] New or changed behaviour has a test
 - [ ] If the change moves any benchmark numbers, the affected CSV and the report were regenerated
 - [ ] Docs or the README were updated if needed

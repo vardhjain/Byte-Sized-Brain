@@ -1,100 +1,69 @@
-# ─────────────────────────────────────────────────────────────────────────
-# Byte-Sized Brain — project-specific ignores
-# ─────────────────────────────────────────────────────────────────────────
-# Regenerable model artifacts (trained models, TFLite, ONNX, SavedModels).
-# These are NEVER committed — they are reproduced by `bsb train|convert`.
-artifacts/
+# Byte-Sized Brain ignore rules.
+#
+# Generic directory names (build, dist, data, site and so on) are anchored to the
+# repository root with a leading "/". An unanchored rule matches at any depth,
+# and an unanchored "data/" once kept src/byte_sized_brain/data out of git and
+# broke CI. Dot-directories and distinctive names can stay unanchored because no
+# Python package can be named like them.
+
+# Regenerable model artifacts. `bsb train` and `bsb convert` reproduce these
+# (including the Hugging Face Trainer scratch), so they are never committed.
+/artifacts/
 *.tflite
 *.onnx
-*.pb
-*.savedmodel/
+*.h5
+*.keras
 saved_model/
+*.savedmodel/
+checkpoint-*/
+/runs/
+/wandb/
 
-# Dataset caches downloaded at runtime (root-level only — must NOT match the
-# src/byte_sized_brain/data package!). Datasets actually cache to ~/.keras and
-# ~/.cache/huggingface, but keep a root /data/ guard just in case.
+# Dataset caches. Datasets normally cache to ~/.keras and ~/.cache/huggingface,
+# so these only guard against a project-local cache.
 /data/
 .keras/
 .cache/
-*.npz
 
-# HuggingFace / Trainer scratch
-runs/
-checkpoint-*/
-wandb/
+# Smoke-run results are throwaway functional checks. The only committed outputs
+# are the full-run CSVs in benchmarks/results/ and the charts in docs/images/.
+/benchmarks/results/smoke/
 
-# The ONLY committed outputs are CSVs under benchmarks/results/ and small
-# generated charts under docs/images/ — keep those, ignore everything else big.
-
-# ─────────────────────────────────────────────────────────────────────────
-# Python
-# ─────────────────────────────────────────────────────────────────────────
+# Python bytecode, build and packaging output.
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
+/build/
+/dist/
 *.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
+.eggs/
 
-# ─────────────────────────────────────────────────────────────────────────
-# Test / type / lint caches
-# ─────────────────────────────────────────────────────────────────────────
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-.hypothesis/
+# Test, lint and type-checker caches.
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
-.dmypy.json
-dmypy.json
-.pyre/
-.pytype/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
 
-# ─────────────────────────────────────────────────────────────────────────
-# Environments
-# ─────────────────────────────────────────────────────────────────────────
-.env
-.venv
-env/
+# Virtual environments and local secrets (for example an HF_TOKEN).
+.venv/
 venv/
-ENV/
-env.bak/
-venv.bak/
+.env
+.env.*
+!.env.example
 
-# ─────────────────────────────────────────────────────────────────────────
-# Editors / OS
-# ─────────────────────────────────────────────────────────────────────────
+# Editors and operating systems.
 .vscode/
 .idea/
 *.swp
 .DS_Store
 Thumbs.db
+desktop.ini
+.ipynb_checkpoints/
 
-# Jupyter
-.ipynb_checkpoints
-
-# mkdocs build output
+# mkdocs build output.
 /site/
+
+# Private working notes.
+/PROJECT_PLAN.md

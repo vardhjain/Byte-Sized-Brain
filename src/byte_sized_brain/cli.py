@@ -1,12 +1,18 @@
-"""``bsb`` — one CLI for the whole project.
+"""``bsb``, one CLI for the whole project.
+
+Usage::
 
     bsb train     <pipeline|all> [--smoke]
     bsb convert   <pipeline|all> [--smoke]
     bsb benchmark <pipeline|all> [--smoke] [--num-samples N]
     bsb run       <pipeline|all> [--smoke]      # train + convert + benchmark
     bsb report                                  # aggregate CSVs -> docs/report.md
+    bsb demo      <distilbert_imdb|rnn_imdb> [TEXT ...] [--smoke]
     bsb info                                    # system + library versions
     bsb list                                    # available pipelines
+
+``--smoke`` runs keep their artifacts under ``artifacts/smoke/`` and their results
+under ``benchmarks/results/smoke/``, so they never replace a full run.
 """
 
 from __future__ import annotations
@@ -31,14 +37,25 @@ def _targets(name: str) -> list[str]:
 
 def _load(pipeline: str, args: argparse.Namespace) -> PipelineConfig:
     cfg = load_config(args.config or pipeline, smoke=getattr(args, "smoke", False))
-    if getattr(args, "num_samples", None):
-        cfg.benchmark.num_samples = args.num_samples
+    if cfg.name != pipeline:
+        raise ValueError(
+            f"{args.config} configures the {cfg.name!r} pipeline, but the command "
+            f"targets {pipeline!r}. Pass the matching pipeline name."
+        )
+    if getattr(args, "num_samples", None) is not None:
+        cfg.benchmark.num_samples = args.num_samples  # validated, must be >= 1
+    expected = get_pipeline(cfg.name).quantization
+    if cfg.convert.quantization != expected:
+        raise ValueError(
+            f"{cfg.name} config asks for convert.quantization={cfg.convert.quantization!r}, "
+            f"but the {cfg.name} pipeline implements {expected!r}."
+        )
     return cfg
 
 
 def _do_train(cfg: PipelineConfig, paths: Paths) -> None:
     acc = get_pipeline(cfg.name).train(cfg, paths)
-    log.info("[%s] trained - baseline FP32 accuracy: %.4f", cfg.name, acc)
+    log.info("[%s] trained, baseline FP32 accuracy: %.4f", cfg.name, acc)
 
 
 def _do_convert(cfg: PipelineConfig, paths: Paths) -> None:
@@ -56,12 +73,18 @@ def _do_benchmark(cfg: PipelineConfig, paths: Paths) -> None:
 
 
 def _run_stages(pipeline: str, args: argparse.Namespace, stages: tuple[str, ...]) -> None:
+    smoke = getattr(args, "smoke", False)
     for name in _targets(pipeline):
         cfg = _load(name, args)
-        seed_everything(cfg.seed)
-        paths = Paths(cfg.name)
-        log.info("=== %s (%s) | stages: %s%s ===", name, cfg.framework, ",".join(stages),
-                 " | SMOKE" if getattr(args, "smoke", False) else "")
+        seed_everything(cfg.seed, frameworks=(cfg.framework,))
+        paths = Paths(cfg.name, smoke=smoke)
+        log.info(
+            "=== %s (%s) | stages: %s%s ===",
+            name,
+            cfg.framework,
+            ",".join(stages),
+            " | SMOKE" if smoke else "",
+        )
         if "train" in stages:
             _do_train(cfg, paths)
         if "convert" in stages:
@@ -83,7 +106,7 @@ def cmd_info(_: argparse.Namespace) -> int:
 def cmd_list(_: argparse.Namespace) -> int:
     for name in all_names():
         p = get_pipeline(name)
-        print(f"{name:18} {p.framework}")
+        print(f"{name:18} {p.framework:12} {p.quantization}")
     return 0
 
 
@@ -98,7 +121,7 @@ def cmd_demo(args: argparse.Namespace) -> int:
     from .demo import format_rows, run_demo
 
     try:
-        rows = run_demo(args.pipeline, args.text or None, config=args.config)
+        rows = run_demo(args.pipeline, args.text or None, config=args.config, smoke=args.smoke)
     except FileNotFoundError as exc:
         log.error("%s", exc)
         return 1
@@ -120,10 +143,16 @@ def main(argv: list[str] | None = None) -> int:
     for name in stage_map:
         sp = sub.add_parser(name, help=f"{name} a pipeline")
         sp.add_argument("pipeline", choices=[*all_names(), "all"])
-        sp.add_argument("--smoke", action="store_true", help="tiny, fast end-to-end run")
-        sp.add_argument("--config", default=None, help="explicit config path")
+        sp.add_argument(
+            "--smoke",
+            action="store_true",
+            help="tiny, fast end-to-end run (kept under artifacts/smoke and results/smoke)",
+        )
+        sp.add_argument("--config", default=None, help="explicit config path (one pipeline only)")
         if name in {"benchmark", "run"}:
-            sp.add_argument("--num-samples", type=int, default=None, help="override eval sample count")
+            sp.add_argument(
+                "--num-samples", type=int, default=None, help="override eval sample count"
+            )
 
     sub.add_parser("report", help="aggregate CSVs into docs/report.md + charts")
     sub.add_parser("info", help="print system + library versions")
@@ -134,6 +163,7 @@ def main(argv: list[str] | None = None) -> int:
     demo.add_argument(
         "text", nargs="*", help="review(s) to classify; quote each (default: built-in examples)"
     )
+    demo.add_argument("--smoke", action="store_true", help="use the artifacts of a --smoke run")
     demo.add_argument("--config", default=None)
 
     args = parser.parse_args(argv)
@@ -147,9 +177,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "demo":
         return cmd_demo(args)
 
+    if args.config and args.pipeline == "all":
+        parser.error("--config applies to a single pipeline, not 'all'")
+
     try:
         _run_stages(args.pipeline, args, stage_map[args.command])
-    except Exception as exc:  # surface a clean message, non-zero exit for CI
+    except Exception as exc:  # log a one-line summary, then keep the traceback for debugging
         log.error("%s failed: %s", args.command, exc)
         raise
     return 0

@@ -1,16 +1,18 @@
-"""TensorFlow SavedModel → TFLite conversions.
+"""TensorFlow SavedModel to TFLite conversions.
 
-Three honest, clearly-named paths:
+There are three honest, clearly-named paths.
 
-* :func:`to_fp32` — plain FP32 TFLite (baseline).
-* :func:`to_static_int8` — full-integer PTQ using a **real** representative
-  dataset (weights *and* activations quantized). Best size/latency win, needs
-  ops that support integer inference.
-* :func:`to_dynamic_range` — dynamic-range PTQ (weights INT8, activations FP32
-  at runtime). The right choice for the LSTM, whose ops need the TF-Select
-  (Flex) runtime and don't support full-integer quantization.
+* :func:`to_fp32` is plain FP32 TFLite (the baseline).
+* :func:`to_static_int8` is full-integer PTQ using a **real** representative
+  dataset (weights *and* activations quantized). It gives the best size/latency
+  win but needs ops that support integer inference.
+* :func:`to_dynamic_range` is dynamic-range PTQ (weights INT8, activations FP32
+  at runtime). It needs no calibration data and is the right choice for the
+  LSTM, whose ops don't support full-integer quantization.
 
-``flex=True`` enables ``SELECT_TF_OPS`` so TF-only ops (LSTM / TensorList) work.
+``flex=True`` enables ``SELECT_TF_OPS`` for models with TF-only ops. None of the
+bundled pipelines need it (the LSTM exports with a static batch so it lowers to
+builtins), and a Flex model needs the Flex delegate to run.
 """
 
 from __future__ import annotations

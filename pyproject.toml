@@ -1,68 +1,101 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+# setuptools 77 is the first release that understands SPDX license expressions
+# (PEP 639), which the `license` field below uses.
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "byte-sized-brain"
-version = "0.1.0"
-description = "Benchmarking the accuracy / size / latency / memory trade-offs of post-training quantization across four model families and three modalities, on x86 and ARM64."
+dynamic = ["version"]
+description = "Measures what post-training quantization does to model size, accuracy, latency and memory, across four model families, with one shared benchmark harness."
 readme = "README.md"
-requires-python = ">=3.10"
-license = { text = "MIT" }
+# Python 3.11 and 3.12 are tested in CI. The pinned requirements.txt cannot
+# install on 3.10 (pandas 3, onnxruntime 1.24 and keras 3.14 need 3.11) or on
+# 3.13 (numpy 1.26 and matplotlib 3.8 ship no 3.13 wheels).
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Vardh Jain", email = "vardhjain20@gmail.com" }]
 keywords = [
-    "quantization", "edge-ml", "tflite", "onnx", "model-compression",
-    "benchmarking", "tensorflow", "pytorch", "arm64",
+    "quantization",
+    "post-training-quantization",
+    "int8",
+    "edge-ml",
+    "tflite",
+    "onnx",
+    "onnxruntime",
+    "model-compression",
+    "benchmarking",
+    "tensorflow",
+    "pytorch",
+    "arm64",
 ]
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
     "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: System :: Benchmark",
+    "Typing :: Typed",
 ]
 
-# Core dependencies — enough to load configs, run the benchmark harness,
-# aggregate results and render charts. Heavy ML frameworks are optional extras
-# so a contributor can install only the pipelines they care about.
+# Core dependencies are enough to load configs, run the benchmark harness,
+# aggregate results and draw charts. The heavy ML frameworks are optional
+# extras, so a contributor can install only the pipelines they care about.
+# These are library-style ranges. requirements.txt holds the exact versions
+# behind the committed results.
 dependencies = [
-    "numpy>=1.24,<2.0",
+    "numpy>=1.24",
     "pyyaml>=6.0",
-    "pydantic>=2.0,<3.0",
+    "pydantic>=2.0,<3",
     "psutil>=5.9",
     "pandas>=2.0",
     "matplotlib>=3.7",
 ]
 
 [project.optional-dependencies]
-# TensorFlow pipelines: FFN/MNIST, CNN/CIFAR-10, RNN/IMDB (TFLite).
+# TensorFlow pipelines (FFN/MNIST, CNN/CIFAR-10, RNN/IMDB), converted to TFLite.
+# 2.16 is the first release that ships Keras 3, which the SavedModel export uses.
+# The upper bound stops an untested TensorFlow release (and its TFLite converter)
+# from being picked up silently.
 tf = ["tensorflow>=2.16,<2.22"]
-# PyTorch / HuggingFace pipeline: DistilBERT/IMDB (ONNX Runtime).
+# PyTorch and Hugging Face pipeline (DistilBERT/IMDB), run with ONNX Runtime.
+# torch 2.4 is the first release whose torch.onnx.export accepts dynamo=False, and
+# transformers 4.46 is the first whose Trainer accepts processing_class.
 torch = [
-    "torch>=2.2",
-    "transformers>=4.45",
+    "torch>=2.4",
+    "transformers>=4.46",
     "datasets>=2.16",
     "onnxruntime>=1.16",
     "onnx>=1.15",
     "accelerate>=0.26",
 ]
-all = [
-    "tensorflow>=2.16,<2.22",
-    "torch>=2.2",
-    "transformers>=4.45",
-    "datasets>=2.16",
-    "onnxruntime>=1.16",
-    "onnx>=1.15",
-    "accelerate>=0.26",
-]
+all = ["byte-sized-brain[tf,torch]"]
 dev = ["pytest>=8.0", "ruff>=0.5", "mypy>=1.8"]
+# The Streamlit demo also needs the extra for the pipeline it loads, for example
+# pip install -e ".[all,demo]".
 demo = ["streamlit>=1.30"]
+docs = ["mkdocs-material>=9.5,<10"]
 
 [project.scripts]
 bsb = "byte_sized_brain.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/vardhjain/Byte-Sized-Brain"
+Documentation = "https://vardhjain.github.io/Byte-Sized-Brain/"
 Repository = "https://github.com/vardhjain/Byte-Sized-Brain"
+Issues = "https://github.com/vardhjain/Byte-Sized-Brain/issues"
+Changelog = "https://github.com/vardhjain/Byte-Sized-Brain/blob/Byte-Sized-Brain/CHANGELOG.md"
+Demo = "https://huggingface.co/spaces/vardhjain20/byte-sized-brain-demo"
+
+[tool.setuptools.dynamic]
+version = { attr = "byte_sized_brain.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -70,35 +103,39 @@ where = ["src"]
 [tool.setuptools.package-data]
 byte_sized_brain = ["py.typed"]
 
-# ─────────────────────────────────────────────────────────────────────────
+# Ruff (lint and format)
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py311"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "C4", "SIM"]
-# E402: pipeline modules intentionally import heavy frameworks lazily, inside
-# functions, so the CLI stays fast — that is by design, not a smell.
+# E501 (line too long) is off because `ruff format` already wraps code at 100
+# characters. The lines it leaves long are strings and URLs that cannot be split.
 ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
+# B011 flags `assert False`, which is a normal way to fail a test.
 "tests/*" = ["B011"]
 
-# ─────────────────────────────────────────────────────────────────────────
+# pytest
 [tool.pytest.ini_options]
+minversion = "8.0"
 testpaths = ["tests"]
-addopts = "-q"
+addopts = ["-ra", "--strict-markers"]
 markers = [
-    "smoke: end-to-end train→convert→benchmark on a tiny subset (slow, needs frameworks)",
+    "smoke: end-to-end train, convert and benchmark on a tiny subset (slow, needs frameworks and network)",
     "tf: requires TensorFlow",
-    "torch: requires PyTorch + transformers",
+    "torch: requires PyTorch and transformers",
 ]
 
-# ─────────────────────────────────────────────────────────────────────────
+# mypy
 [tool.mypy]
-python_version = "3.10"
-ignore_missing_imports = true   # tensorflow / torch / onnxruntime ship no stubs
-warn_unused_ignores = false
-no_implicit_optional = true
+python_version = "3.11"
 files = ["src"]
+# tensorflow, torch and onnxruntime ship no complete type stubs.
+ignore_missing_imports = true
+warn_unused_ignores = false
+warn_unused_configs = true
+no_implicit_optional = true

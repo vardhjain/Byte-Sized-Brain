@@ -1,22 +1,35 @@
-# Pinned, reproducible environment for Byte-Sized Brain.
-# These are the exact versions the committed results in benchmarks/results/
-# were produced with. For a looser, library-style install use the extras in
-# pyproject.toml:  pip install -e ".[all,dev]"
+# Pinned environment for Byte-Sized Brain.
 #
-# Install everything:  pip install -r requirements.txt
+# These are the library versions behind the committed results in
+# benchmarks/results/ (every CSV row also records its own versions in the
+# lib_versions column). The full runs used Python 3.11. CI installs this set
+# on Python 3.11 and 3.12 through `pip install -c requirements.txt ...`.
+#
+# This set needs Python 3.11 or 3.12. pandas 3.0.3, onnxruntime 1.24.1 and
+# keras 3.14.1 require Python 3.11 or newer, and numpy 1.26.4 and
+# matplotlib 3.8.0 ship no wheels for Python 3.13.
+#
+# Install everything (the Dockerfiles do the same, with a CPU-only torch):
+#     pip install -r requirements.txt
+#     pip install --no-deps -e .
+# For a looser, library-style install use the extras in pyproject.toml, for
+# example `pip install -e ".[all,dev]"`.
 
-# ── Core (config, harness, reporting) ───────────────────────────────────
+# Core (config, harness, reporting)
 numpy==1.26.4
 pyyaml==6.0.2
 pydantic==2.11.3
-psutil==5.9.5
+psutil==7.2.2
 pandas==3.0.3
 matplotlib==3.8.0
 
-# ── TensorFlow pipelines: FFN/MNIST, CNN/CIFAR-10, RNN/IMDB (TFLite) ─────
+# TensorFlow pipelines: FFN/MNIST, CNN/CIFAR-10, RNN/IMDB (TFLite).
+# keras is pinned too because TensorFlow only sets a lower bound on it, and the
+# Keras version decides how models are exported to SavedModel.
 tensorflow==2.21.0
+keras==3.14.1
 
-# ── PyTorch / HuggingFace pipeline: DistilBERT/IMDB (ONNX Runtime) ───────
+# PyTorch and Hugging Face pipeline: DistilBERT/IMDB (ONNX Runtime)
 torch==2.7.0
 transformers==4.57.6
 datasets==4.4.1
@@ -24,7 +37,10 @@ onnxruntime==1.24.1
 onnx==1.21.0
 accelerate==1.14.0
 
-# ── Dev / CI ────────────────────────────────────────────────────────────
+# Dev and CI tooling
 pytest==9.0.3
 ruff==0.15.17
 mypy==2.1.0
+
+# Documentation site (mkdocs build --strict)
+mkdocs-material==9.7.6

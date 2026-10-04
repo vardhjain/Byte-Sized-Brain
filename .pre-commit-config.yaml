@@ -1,0 +1,41 @@
+# Commit-time checks. Set up once per clone, then they run on every commit.
+#
+#   pip install pre-commit
+#   pre-commit install
+#   pre-commit run --all-files     # check the whole tree on demand
+#
+# The ruff rev matches ruff==0.15.17 in requirements.txt. Pin the `dev` extra in
+# pyproject.toml to the same version so this hook, `make lint` and CI always agree,
+# and bump all three together (`pre-commit autoupdate` updates this file).
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: detect-private-key
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.17
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+
+  # House style for prose. Use commas, parentheses or a new sentence instead.
+  - repo: local
+    hooks:
+      - id: no-em-dash
+        name: no em dashes
+        language: pygrep
+        entry: '\xe2\x80\x94'  # UTF-8 bytes of the em dash (pygrep matches bytes)
+        types: [text]

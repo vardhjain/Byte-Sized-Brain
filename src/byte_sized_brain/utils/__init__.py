@@ -2,7 +2,7 @@
 
 from .logging import get_logger
 from .sizing import size_bytes, size_mb
-from .sysinfo import collect_sysinfo, library_versions
+from .sysinfo import collect_sysinfo, library_versions, normalize_arch
 
 __all__ = [
     "get_logger",
@@ -10,4 +10,5 @@ __all__ = [
     "size_mb",
     "collect_sysinfo",
     "library_versions",
+    "normalize_arch",
 ]

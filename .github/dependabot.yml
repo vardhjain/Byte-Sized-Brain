@@ -1,0 +1,56 @@
+version: 2
+
+updates:
+  # The actions used by the workflows, bundled into one pull request a month.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      github-actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
+
+  # Python packages in requirements.txt and pyproject.toml.
+  #
+  # requirements.txt records the versions behind the committed results. A pull
+  # request that moves one of the ML packages should be merged only after the
+  # affected benchmarks are re-run, otherwise the committed CSVs and the pins
+  # disagree. The dev tools never touch the results, so they get their own group.
+  # Major releases (numpy 2, transformers 5 and the like) can change numerics and
+  # are upgraded by hand, together with a fresh benchmark run.
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    cooldown:
+      default-days: 14
+    groups:
+      dev-tools:
+        patterns:
+          - "pytest"
+          - "ruff"
+          - "mypy"
+          - "mkdocs-material"
+      ml-stack:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    commit-message:
+      prefix: deps
+
+  # The python base image of docker/Dockerfile and docker/Dockerfile.arm64.
+  # Only patch releases are proposed, so the images stay on Python 3.11, the
+  # version the committed results were produced with.
+  - package-ecosystem: docker
+    directory: /docker
+    schedule:
+      interval: monthly
+    ignore:
+      - dependency-name: "python"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+    commit-message:
+      prefix: docker

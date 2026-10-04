@@ -1,40 +1,75 @@
-name: docs
+name: Docs
 
+# Pull requests only build the site (with --strict, so a broken link or a
+# missing page fails the check). Pushes to the default branch also deploy it.
 on:
   push:
     branches: ["Byte-Sized-Brain"]
     paths:
       - "docs/**"
       - "mkdocs.yml"
+      - "requirements.txt"
+      - ".github/workflows/docs.yml"
+  pull_request:
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "requirements.txt"
       - ".github/workflows/docs.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
+# Never cancel a deployment halfway through. Pull requests get their own group,
+# so they do not queue behind a deployment, and a newer push to the same pull
+# request cancels its older build.
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: ${{ github.event_name == 'pull_request' && format('docs-pr-{0}', github.ref) || 'pages' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
 
 jobs:
-  build-and-deploy:
+  build:
+    name: Build the site
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      # The mkdocs-material version comes from requirements.txt.
+      - name: Install MkDocs Material
+        run: pip install -c requirements.txt mkdocs-material
+      - name: Build
+        run: mkdocs build --strict
+      - name: Upload the site for GitHub Pages
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/Byte-Sized-Brain'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Only this job may publish, and only through the github-pages environment.
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: pip
-      - run: pip install mkdocs-material
-      - run: mkdocs build --strict
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: site
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v5
