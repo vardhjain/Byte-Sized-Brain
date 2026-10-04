@@ -4,7 +4,7 @@
 #   pre-commit install
 #   pre-commit run --all-files     # check the whole tree on demand
 #
-# The ruff rev matches ruff==0.15.17 in requirements.txt. Pin the `dev` extra in
+# The ruff rev matches ruff==0.16.8 in requirements.txt. Pin the `dev` extra in
 # pyproject.toml to the same version so this hook, `make lint` and CI always agree,
 # and bump all three together (`pre-commit autoupdate` updates this file).
 repos:
@@ -25,7 +25,7 @@ repos:
       - id: detect-private-key
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.17
+    rev: v0.16.8
     hooks:
       - id: ruff-check
         args: [--fix]
