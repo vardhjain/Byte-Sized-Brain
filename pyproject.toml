@@ -91,7 +91,7 @@ Homepage = "https://github.com/vardhjain/Byte-Sized-Brain"
 Documentation = "https://vardhjain.github.io/Byte-Sized-Brain/"
 Repository = "https://github.com/vardhjain/Byte-Sized-Brain"
 Issues = "https://github.com/vardhjain/Byte-Sized-Brain/issues"
-Changelog = "https://github.com/vardhjain/Byte-Sized-Brain/blob/Byte-Sized-Brain/CHANGELOG.md"
+Changelog = "https://github.com/vardhjain/Byte-Sized-Brain/blob/main/CHANGELOG.md"
 Demo = "https://huggingface.co/spaces/vardhjain20/byte-sized-brain-demo"
 
 [tool.setuptools.dynamic]
