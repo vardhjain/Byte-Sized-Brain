@@ -6,7 +6,7 @@ does not mean, and how the same benchmark can be run on ARM64.
 ## 1. What is measured
 
 For every model variant, the shared harness
-([`benchmark/harness.py`](https://github.com/vardhjain/Byte-Sized-Brain/blob/Byte-Sized-Brain/src/byte_sized_brain/benchmark/harness.py))
+([`benchmark/harness.py`](https://github.com/vardhjain/Byte-Sized-Brain/blob/main/src/byte_sized_brain/benchmark/harness.py))
 records the same metrics in the same way for TFLite and ONNX Runtime.
 
 | Metric | Definition |
@@ -165,7 +165,7 @@ compares each row only with the FP32 baseline from the same architecture.
 - **MobileNetV2 loses accuracy under full-integer PTQ.** The other three models stay
   within 0.6 percentage points of FP32. The CNN drops from 85.4% to 68.1%. An ablation
   on the same 1,000 test images
-  ([`scripts/cnn_int8_ablation.py`](https://github.com/vardhjain/Byte-Sized-Brain/blob/Byte-Sized-Brain/scripts/cnn_int8_ablation.py),
+  ([`scripts/cnn_int8_ablation.py`](https://github.com/vardhjain/Byte-Sized-Brain/blob/main/scripts/cnn_int8_ablation.py),
   results in `benchmarks/results/ablations/cnn_int8_ablation.csv`) shows where the loss
   comes from.
 

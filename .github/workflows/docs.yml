@@ -4,7 +4,7 @@ name: Docs
 # missing page fails the check). Pushes to the default branch also deploy it.
 on:
   push:
-    branches: ["Byte-Sized-Brain"]
+    branches: ["main"]
     paths:
       - "docs/**"
       - "mkdocs.yml"
