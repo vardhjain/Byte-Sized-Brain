@@ -12,33 +12,25 @@ updates:
     commit-message:
       prefix: ci
 
-  # Python packages in requirements.txt and pyproject.toml.
+  # Python dev tools only (pytest, ruff, mypy, mkdocs-material).
   #
-  # requirements.txt records the versions behind the committed results. A pull
-  # request that moves one of the ML packages should be merged only after the
-  # affected benchmarks are re-run, otherwise the committed CSVs and the pins
-  # disagree. The dev tools never touch the results, so they get their own group.
-  # Major releases (numpy 2, transformers 5 and the like) can change numerics and
-  # are upgraded by hand, together with a fresh benchmark run.
+  # The ML packages in requirements.txt are deliberately frozen, because they are
+  # the versions behind the committed benchmark results. They are upgraded by
+  # hand, together with a fresh benchmark run, so Dependabot does not propose them.
   - package-ecosystem: pip
     directory: /
     schedule:
       interval: monthly
-    open-pull-requests-limit: 3
     cooldown:
       default-days: 14
+    allow:
+      - dependency-name: "pytest"
+      - dependency-name: "ruff"
+      - dependency-name: "mypy"
+      - dependency-name: "mkdocs-material"
     groups:
       dev-tools:
-        patterns:
-          - "pytest"
-          - "ruff"
-          - "mypy"
-          - "mkdocs-material"
-      ml-stack:
         patterns: ["*"]
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
     commit-message:
       prefix: deps
 
