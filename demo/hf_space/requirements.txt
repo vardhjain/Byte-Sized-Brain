@@ -1,5 +1,9 @@
-gradio>=4.0
-onnxruntime>=1.16
-transformers>=4.45
-huggingface_hub>=0.23
-numpy>=1.24,<2.0
+# Exact versions this Space was tested with, on Python 3.11.
+# On Hugging Face the Gradio version comes from sdk_version in README.md, so keep the
+# gradio pin below equal to it (deploy_hf.py refuses to deploy if they differ). The pin
+# is here so that "pip install -r requirements.txt" also works for a local run.
+gradio==6.17.3
+onnxruntime==1.24.1
+transformers==4.57.6
+huggingface_hub==0.36.2
+numpy==1.26.4

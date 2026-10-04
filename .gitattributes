@@ -1,2 +1,35 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Line endings. Text is stored with LF in the repository and checked out with LF
+# on every platform, so a Windows working copy, the Linux CI runners and the
+# Docker build context all see the same bytes. This overrides a machine-wide
+# core.autocrlf=true, which Git for Windows sets by default.
+* text=auto eol=lf
+
+# cmd.exe needs CRLF, should a batch script ever be added.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Language-aware hunk headers in `git diff` and `git log -p`.
+*.py text diff=python
+*.md text diff=markdown
+
+# Binary files are never normalized or diffed as text. Model formats are
+# gitignored, but are listed so a fixture added with `git add -f` stays intact.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.tflite binary
+*.onnx binary
+*.pb binary
+*.h5 binary
+*.keras binary
+*.npy binary
+*.npz binary
+*.pt binary
+*.pth binary
+*.safetensors binary
+
+# Written by `bsb report`. Collapsed by default in pull request diffs.
+docs/report.md linguist-generated=true

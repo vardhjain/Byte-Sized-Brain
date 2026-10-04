@@ -1,0 +1,26 @@
+# GitHub reads this file to show a "Cite this repository" button.
+cff-version: 1.2.0
+message: "If you use this software or its benchmark results, please cite it as below."
+type: software
+title: "Byte-Sized Brain"
+version: 0.2.0
+abstract: >-
+  A reproducible benchmark of post-training quantization. It trains a feed-forward
+  network on MNIST, a MobileNetV2 CNN on CIFAR-10, an LSTM on IMDB and DistilBERT on
+  IMDB, converts each to TFLite or ONNX Runtime with INT8 or dynamic-range
+  quantization, and measures model size, accuracy, latency and memory with one shared
+  harness. Committed results are from an x86-64 CPU, and the same code runs on ARM64.
+authors:
+  - given-names: Vardh
+    family-names: Jain
+repository-code: "https://github.com/vardhjain/Byte-Sized-Brain"
+url: "https://vardhjain.github.io/Byte-Sized-Brain/"
+license: MIT
+keywords:
+  - quantization
+  - post-training quantization
+  - model compression
+  - edge machine learning
+  - TensorFlow Lite
+  - ONNX Runtime
+  - benchmarking

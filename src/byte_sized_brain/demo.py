@@ -2,10 +2,11 @@
 
 Runs the same review text through both the full-precision and the quantized
 artifact of an IMDB sentiment model and shows, side by side, the prediction,
-confidence, per-inference latency and on-disk size — making the quantization
+confidence, per-inference latency and on-disk size, which makes the quantization
 trade-off tangible. Used by ``bsb demo`` and by the optional Streamlit app.
 
-Requires the artifacts to exist (run ``bsb run <pipeline>`` first).
+Requires the artifacts to exist (run ``bsb run <pipeline>`` first, or
+``bsb run <pipeline> --smoke`` and then pass ``smoke=True``).
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ from .utils import size_mb
 
 SENTIMENT = {0: "NEGATIVE", 1: "POSITIVE"}
 SUPPORTED = ("distilbert_imdb", "rnn_imdb")
-# Full-paragraph reviews — the models trained on long IMDB reviews, so a single
+# Full-paragraph reviews. The models trained on long IMDB reviews, so a single
 # short sentence is out-of-distribution and reads as low-confidence.
 DEFAULT_TEXTS = (
     "This is hands down one of the best films I have seen all year. The performances "
@@ -61,21 +62,27 @@ def _timed(fn, *, repeats: int = 15) -> tuple[object, float]:
     return out, best
 
 
-def _encode_imdb(text: str, word_index: dict[str, int], num_words: int, max_len: int) -> np.ndarray:
-    """Encode raw text the way keras.datasets.imdb encodes its sequences."""
-    try:
-        from tensorflow.keras.utils import pad_sequences
-    except ImportError:
-        from tensorflow.keras.preprocessing.sequence import pad_sequences
+# The punctuation the Keras tokenizer replaced with spaces when the IMDB vocabulary
+# was built. The apostrophe is deliberately absent, so "don't" and "wasn't" stay
+# single vocabulary words, and a hyphen splits "well-made" into "well" and "made".
+_KERAS_FILTERS = str.maketrans(dict.fromkeys('!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n', " "))
 
+
+def _imdb_token_ids(text: str, word_index: dict[str, int], num_words: int) -> list[int]:
+    """Token ids for raw text, matching how keras.datasets.imdb encodes reviews."""
     index_from = 3  # keras reserves 0=pad, 1=start, 2=oov
     tokens = [1]
-    for raw in text.lower().split():
-        word = "".join(ch for ch in raw if ch.isalnum())
-        if not word:
-            continue
+    for word in text.lower().translate(_KERAS_FILTERS).split():
         idx = word_index.get(word)
         tokens.append(idx + index_from if idx is not None and idx + index_from < num_words else 2)
+    return tokens
+
+
+def _encode_imdb(text: str, word_index: dict[str, int], num_words: int, max_len: int) -> np.ndarray:
+    """Padded float32 model input for one review (see :func:`_imdb_token_ids`)."""
+    from .data.imdb import pad_sequences
+
+    tokens = _imdb_token_ids(text, word_index, num_words)
     return pad_sequences([tokens], maxlen=max_len).astype(np.float32)[0]
 
 
@@ -130,17 +137,30 @@ def _demo_rnn(cfg: PipelineConfig, paths: Paths, texts: list[str]) -> list[DemoR
     return rows
 
 
-def run_demo(pipeline: str, texts: list[str] | None = None, *, config: str | None = None) -> list[DemoRow]:
+def run_demo(
+    pipeline: str,
+    texts: list[str] | None = None,
+    *,
+    config: str | None = None,
+    smoke: bool = False,
+) -> list[DemoRow]:
+    """Classify ``texts`` with every available variant of ``pipeline``.
+
+    ``smoke=True`` loads the smoke config and the ``artifacts/smoke/`` models, so
+    the text is encoded with the same sequence length and vocabulary the smoke
+    model was trained with.
+    """
     if pipeline not in SUPPORTED:
         raise ValueError(f"demo supports {SUPPORTED}, got {pipeline!r}")
-    cfg = load_config(config or pipeline)
-    paths = Paths(cfg.name)
+    cfg = load_config(config or pipeline, smoke=smoke)
+    paths = Paths(cfg.name, smoke=smoke)
     texts = list(texts) if texts else list(DEFAULT_TEXTS)
 
     expected = paths.onnx("fp32") if pipeline == "distilbert_imdb" else paths.tflite("fp32")
     if not expected.exists():
+        flag = " --smoke" if smoke else ""
         raise FileNotFoundError(
-            f"No artifacts for '{pipeline}'. Run `bsb run {pipeline}` (or `--smoke`) first."
+            f"No artifacts for '{pipeline}' in {paths.dir}. Run `bsb run {pipeline}{flag}` first."
         )
 
     if pipeline == "distilbert_imdb":
@@ -156,7 +176,9 @@ def format_rows(rows: list[DemoRow]) -> str:
             current = r.text
             preview = (r.text[:70] + "...") if len(r.text) > 70 else r.text
             lines.append(f'\n"{preview}"')
-            lines.append(f"  {'variant':<14}{'prediction':<11}{'conf':>7}{'latency':>11}{'size':>10}")
+            lines.append(
+                f"  {'variant':<14}{'prediction':<11}{'conf':>7}{'latency':>11}{'size':>10}"
+            )
             lines.append("  " + "-" * 52)
         lines.append(
             f"  {r.variant:<14}{r.prediction:<11}{r.confidence:>6.1%}"

@@ -1,4 +1,4 @@
-"""Pipeline contract + shared helpers (SavedModel export, TFLite benchmarking)."""
+"""Pipeline contract + shared helpers (SavedModel export, variant benchmarking)."""
 
 from __future__ import annotations
 
@@ -11,7 +11,8 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-from ..benchmark import TFLiteRunner, benchmark_inference, build_row
+from ..benchmark import OnnxRunner, TFLiteRunner, benchmark_inference, build_row
+from ..benchmark.memory import measure_memory
 from ..utils import get_logger, size_mb
 
 if TYPE_CHECKING:
@@ -33,6 +34,7 @@ class Pipeline(ABC):
 
     name: str
     framework: str
+    quantization: str  # the technique the quantized variant uses (see ConvertConfig)
 
     @abstractmethod
     def train(self, cfg: PipelineConfig, paths: Paths) -> float:
@@ -55,9 +57,9 @@ def export_savedmodel(model, dest: Path, *, input_signature=None) -> Path:
     """Export a Keras model to a TF SavedModel dir (Keras 3: ``model.export``).
 
     Pass ``input_signature`` to pin a static input shape. The LSTM pipeline needs
-    a static batch dimension so its ``TensorListReserve`` lowers to the native
-    ``UnidirectionalSequenceLSTM`` builtin — otherwise the converter falls back to
-    TF-Select (Flex) ops that the Python/edge interpreters can't execute.
+    a static batch dimension so the converter can lower its ``TensorListReserve``
+    ops to builtins (a ``WHILE`` loop of ordinary ops). With a dynamic batch the
+    only route is TF-Select (Flex) ops, which the stock interpreter can't execute.
     """
     dest = Path(dest)
     if dest.exists():
@@ -75,28 +77,42 @@ def export_savedmodel(model, dest: Path, *, input_signature=None) -> Path:
     return dest
 
 
-def tflite_benchmark(
+def benchmark_variants(
     cfg: PipelineConfig,
+    paths: Paths,
     variants: Sequence[Variant],
     samples: Sequence[Any] | np.ndarray,
     labels: Sequence[int] | np.ndarray,
     decision_fn: Callable[[Any], int],
 ) -> list[dict[str, Any]]:
-    """Benchmark a set of TFLite variants against shared eval data."""
+    """Benchmark every variant against the same eval data, one result row each."""
     log = get_logger(cfg.name)
+    runners: dict[str, Callable[[Path], Any]] = {
+        "tflite": TFLiteRunner,
+        "onnxruntime": OnnxRunner,
+    }
     rows: list[dict[str, Any]] = []
     for v in variants:
         if not Path(v.path).exists():
-            raise FileNotFoundError(f"Missing artifact {v.path}. Run `bsb convert {cfg.name}` first.")
-        runner = TFLiteRunner(v.path)
+            smoke = " --smoke" if paths.smoke else ""
+            raise FileNotFoundError(
+                f"Missing artifact {v.path}. Run `bsb convert {cfg.name}{smoke}` first."
+            )
+        runner = runners[v.runtime](v.path)
+        # Time only the model call. Input preparation (the float to INT8 quantization
+        # of a full-integer model) happens before the clock starts.
         metrics = benchmark_inference(
-            runner.predict,
+            runner.invoke,
             samples,
             labels,
             num_samples=cfg.benchmark.num_samples,
             warmup=cfg.benchmark.warmup,
             decision_fn=decision_fn,
+            prepare_fn=runner.prepare,
         )
+        del runner
+        # Footprint of this variant alone, measured in a fresh process.
+        metrics.update(measure_memory(v.runtime, v.path, samples[0]))
         mb = size_mb(v.path)
         rows.append(
             build_row(
@@ -109,7 +125,7 @@ def tflite_benchmark(
             )
         )
         log.info(
-            "%-6s acc=%.4f lat=%.2fms (p95 %.2f) size=%.2fMB",
+            "%-13s acc=%.4f lat=%.2fms (p95 %.2f) size=%.2fMB",
             v.name,
             metrics["accuracy"],
             metrics["latency_ms_mean"],

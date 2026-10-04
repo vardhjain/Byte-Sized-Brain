@@ -1,4 +1,4 @@
-"""FFN on MNIST — FP32 TFLite vs static INT8 TFLite (real-data calibration)."""
+"""FFN on MNIST: FP32 TFLite vs static INT8 TFLite (real-data calibration)."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-from .base import Pipeline, Variant, export_savedmodel, tflite_benchmark
+from .base import Pipeline, Variant, benchmark_variants, export_savedmodel
 
 if TYPE_CHECKING:
     from ..config import Paths, PipelineConfig
@@ -15,8 +15,11 @@ if TYPE_CHECKING:
 class FFNMnist(Pipeline):
     name = "ffn_mnist"
     framework = "tensorflow"
+    quantization = "static_int8"
 
     def train(self, cfg: PipelineConfig, paths: Paths) -> float:
+        from tensorflow import keras
+
         from ..data.mnist import load_mnist
         from ..models.ffn import build_ffn
 
@@ -26,7 +29,9 @@ class FFNMnist(Pipeline):
 
         model = build_ffn()
         model.compile(
-            optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"]
+            optimizer=keras.optimizers.Adam(cfg.train.learning_rate),
+            loss="sparse_categorical_crossentropy",
+            metrics=["accuracy"],
         )
         model.fit(
             x_train,
@@ -43,12 +48,13 @@ class FFNMnist(Pipeline):
     def variants(self, cfg: PipelineConfig, paths: Paths) -> list[Variant]:
         return [
             Variant("fp32", "none", "tflite", paths.tflite("fp32")),
-            Variant("int8", "static_int8", "tflite", paths.tflite("int8")),
+            Variant("int8", self.quantization, "tflite", paths.tflite("int8")),
         ]
 
     def convert(self, cfg: PipelineConfig, paths: Paths) -> list[Variant]:
         from ..convert import tflite
-        from ..data.mnist import load_mnist, representative_dataset
+        from ..data import representative_dataset
+        from ..data.mnist import load_mnist
 
         (x_train, _), _ = load_mnist()
         tflite.to_fp32(paths.fp32_source, paths.tflite("fp32"))
@@ -64,6 +70,11 @@ class FFNMnist(Pipeline):
         from ..data.mnist import load_mnist
 
         (_, _), (x_test, y_test) = load_mnist()
-        return tflite_benchmark(
-            cfg, self.variants(cfg, paths), x_test, y_test, decision_fn=lambda o: int(np.argmax(o))
+        return benchmark_variants(
+            cfg,
+            paths,
+            self.variants(cfg, paths),
+            x_test,
+            y_test,
+            decision_fn=lambda o: int(np.argmax(o)),
         )

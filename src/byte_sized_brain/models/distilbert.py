@@ -28,28 +28,25 @@ def train_distilbert(cfg: PipelineConfig, paths: Paths) -> float:
     max_len = cfg.data.max_len or 128
     tokenizer = AutoTokenizer.from_pretrained(cfg.model)
 
-    raw = load_dataset(cfg.dataset)
-
     def preprocess(batch: dict) -> dict:
-        return tokenizer(
-            batch["text"], padding="max_length", truncation=True, max_length=max_len
-        )
+        return tokenizer(batch["text"], padding="max_length", truncation=True, max_length=max_len)
 
-    ds = raw.map(
-        preprocess,
-        batched=True,
-        num_proc=cfg.train.num_proc,
-        remove_columns=["text"],
-    )
-    ds = ds.rename_column("label", "labels")
-    ds.set_format("torch", columns=["input_ids", "attention_mask", "labels"])
+    def split(name: str, subset: int | None):
+        # Shuffle and subset *before* tokenizing. Tokenizing first would also pay
+        # for every review that gets thrown away (the IMDB dataset ships 100k
+        # reviews across train/test/unsupervised, and the configs keep ~3.5k).
+        # Shuffling depends only on the seed and length, so the selected reviews
+        # are the same either way.
+        ds = load_dataset(cfg.dataset, split=name).shuffle(seed=cfg.seed)
+        if subset:
+            ds = ds.select(range(min(subset, len(ds))))
+        ds = ds.map(preprocess, batched=True, num_proc=cfg.train.num_proc, remove_columns=["text"])
+        ds = ds.rename_column("label", "labels")
+        ds.set_format("torch", columns=["input_ids", "attention_mask", "labels"])
+        return ds
 
-    train_ds = ds["train"].shuffle(seed=cfg.seed)
-    eval_ds = ds["test"].shuffle(seed=cfg.seed)
-    if cfg.train.train_subset:
-        train_ds = train_ds.select(range(cfg.train.train_subset))
-    if cfg.train.eval_subset:
-        eval_ds = eval_ds.select(range(cfg.train.eval_subset))
+    train_ds = split("train", cfg.train.train_subset)
+    eval_ds = split("test", cfg.train.eval_subset)
 
     model = DistilBertForSequenceClassification.from_pretrained(cfg.model, num_labels=2)
 

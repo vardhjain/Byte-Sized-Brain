@@ -1,0 +1,57 @@
+name: Docker
+
+# Builds both images with the same commands as `make docker-build` and
+# `make docker-build-arm`, then runs the smallest pipeline inside each one.
+# It runs on pull requests that change something that goes into an image, and on
+# demand from the Actions tab.
+on:
+  pull_request:
+    paths:
+      - "docker/**"
+      - ".dockerignore"
+      - "requirements.txt"
+      - "pyproject.toml"
+      - "src/**"
+      - "configs/**"
+      - ".github/workflows/docker.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and run the ${{ matrix.arch }} image
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+            build: docker build -f docker/Dockerfile -t bsb:ci .
+          # The ARM64 image is built on GitHub's native ARM64 runner, which is far
+          # faster than QEMU. The command is the one the Makefile uses on x86 hosts.
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            build: docker buildx build --platform linux/arm64 -f docker/Dockerfile.arm64 -t bsb:ci --load .
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Build the image
+        run: ${{ matrix.build }}
+      - name: Check that every framework imports
+        run: >-
+          docker run --rm bsb:ci python -c
+          "import tensorflow, torch, onnxruntime, transformers;
+          print('tensorflow', tensorflow.__version__, '| torch', torch.__version__)"
+      - name: Show the environment the image reports
+        run: docker run --rm bsb:ci bsb info
+      - name: Smoke-run the smallest pipeline (FFN/MNIST)
+        run: docker run --rm bsb:ci bsb run ffn_mnist --smoke

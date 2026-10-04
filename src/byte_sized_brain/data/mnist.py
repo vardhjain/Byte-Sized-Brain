@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator
-
 import numpy as np
+
+from . import representative_dataset
 
 
 def load_mnist() -> tuple[tuple[np.ndarray, np.ndarray], tuple[np.ndarray, np.ndarray]]:
@@ -17,12 +17,4 @@ def load_mnist() -> tuple[tuple[np.ndarray, np.ndarray], tuple[np.ndarray, np.nd
     return (x_train, y_train), (x_test, y_test)
 
 
-def representative_dataset(x: np.ndarray, n: int = 100) -> Callable[[], Iterator[list[np.ndarray]]]:
-    """A real-data representative dataset for static INT8 calibration."""
-    n = min(n, len(x))
-
-    def gen() -> Iterator[list[np.ndarray]]:
-        for i in range(n):
-            yield [x[i : i + 1].astype(np.float32)]
-
-    return gen
+__all__ = ["load_mnist", "representative_dataset"]

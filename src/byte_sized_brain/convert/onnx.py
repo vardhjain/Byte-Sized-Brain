@@ -1,11 +1,13 @@
 """HuggingFace DistilBERT → ONNX (FP32 export + dynamic INT8 quantization).
 
-The original project only ever kept the INT8 file, so its evaluator — which
-needs *both* an FP32 and an INT8 graph — could never run. Here we always export
+The original project only ever kept the INT8 file, so its evaluator (which
+needs *both* an FP32 and an INT8 graph) could never run. Here we always export
 and keep the FP32 graph first, then derive INT8 from it.
 
 The model is wrapped so the exported graph has a single clean ``logits`` output
-rather than a HuggingFace dataclass.
+rather than a HuggingFace dataclass. The export pins the TorchScript-based
+exporter (``dynamo=False``) because torch 2.9 switched the default to the dynamo
+exporter, which needs ``onnxscript`` and treats ``dynamic_axes`` differently.
 """
 
 from __future__ import annotations
@@ -13,7 +15,9 @@ from __future__ import annotations
 from pathlib import Path
 
 
-def export_fp32(model_dir: str | Path, out_path: str | Path, *, seq_len: int = 128, opset: int = 14) -> Path:
+def export_fp32(
+    model_dir: str | Path, out_path: str | Path, *, seq_len: int = 128, opset: int = 14
+) -> Path:
     import torch
     from transformers import AutoTokenizer, DistilBertForSequenceClassification
 
@@ -26,7 +30,7 @@ def export_fp32(model_dir: str | Path, out_path: str | Path, *, seq_len: int = 1
             super().__init__()
             self.m = m
 
-        def forward(self, input_ids, attention_mask):  # noqa: D401
+        def forward(self, input_ids, attention_mask):
             return self.m(input_ids=input_ids, attention_mask=attention_mask).logits
 
     enc = tokenizer(
@@ -51,6 +55,7 @@ def export_fp32(model_dir: str | Path, out_path: str | Path, *, seq_len: int = 1
             "logits": {0: "batch"},
         },
         opset_version=opset,
+        dynamo=False,
     )
     return out
 
