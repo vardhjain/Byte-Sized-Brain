@@ -44,7 +44,9 @@ def test_config_flag_cannot_be_combined_with_all() -> None:
     assert exc.value.code == 2
 
 
-def test_config_claiming_the_wrong_quantization_is_rejected(tmp_path, isolated_artifacts) -> None:
+def test_config_claiming_the_wrong_quantization_is_rejected(
+    tmp_path, isolated_artifacts, cli_errors
+) -> None:
     """The LSTM pipeline is dynamic-range only; a config can't relabel it INT8."""
     bad = tmp_path / "rnn_imdb.yaml"
     bad.write_text(
@@ -52,8 +54,8 @@ def test_config_claiming_the_wrong_quantization_is_rejected(tmp_path, isolated_a
         "dataset: imdb\nmodel: lstm\nconvert:\n  quantization: static_int8\n",
         encoding="utf-8",
     )
-    with pytest.raises(ValueError, match="dynamic_range"):
-        main(["convert", "rnn_imdb", "--config", str(bad)])
+    assert main(["convert", "rnn_imdb", "--config", str(bad)]) == 1
+    assert "dynamic_range" in cli_errors[0]
 
 
 def test_report_without_results_fails_cleanly(tmp_path, monkeypatch) -> None:
@@ -66,12 +68,12 @@ def test_demo_without_artifacts_fails_cleanly(isolated_artifacts) -> None:
     assert main(["demo", "rnn_imdb", "--smoke"]) == 1
 
 
-def test_config_for_a_different_pipeline_is_rejected(isolated_artifacts) -> None:
+def test_config_for_a_different_pipeline_is_rejected(isolated_artifacts, fake_pipelines) -> None:
     """`bsb train ffn_mnist --config rnn_imdb.yaml` must not quietly train the LSTM."""
-    with pytest.raises(ValueError, match="rnn_imdb"):
-        main(["train", "ffn_mnist", "--config", "configs/rnn_imdb.yaml"])
+    assert main(["train", "ffn_mnist", "--config", "configs/rnn_imdb.yaml"]) == 1
+    assert fake_pipelines.calls == []
 
 
-def test_num_samples_must_be_positive(isolated_artifacts) -> None:
-    with pytest.raises(ValueError):
-        main(["benchmark", "ffn_mnist", "--num-samples", "0"])
+def test_num_samples_must_be_positive(isolated_artifacts, fake_pipelines) -> None:
+    assert main(["benchmark", "ffn_mnist", "--num-samples", "0"]) == 1
+    assert fake_pipelines.calls == []

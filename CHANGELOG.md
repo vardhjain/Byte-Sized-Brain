@@ -14,6 +14,15 @@ semantic versioning.
 - CI now runs the ONNX round trip, memory probe and hosted-demo tests, which were
   previously skipped there.
 
+- Running a stage out of order, a bad option or a bad config now ends with a one-line
+  message and exit code 1 (for example a hint to run `bsb train` first) instead of a
+  traceback.
+- The fast test suite checks exact values: latency statistics on a fake clock, the full
+  report on hand-built results, and the CLI stage logic with the pipelines faked.
+
+### Removed
+- The unused `flex` option of the TFLite converters.
+
 ### Fixed
 - The documentation site deploys from `main` again. The deploy step was still tied
   to the old branch name, so the site had not updated since the rename.

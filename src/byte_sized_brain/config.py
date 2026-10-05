@@ -153,12 +153,20 @@ class Paths:
     so a quick smoke run never replaces fully trained models or committed results.
     """
 
-    def __init__(self, name: str, root: Path | None = None, *, smoke: bool = False) -> None:
+    def __init__(
+        self,
+        name: str,
+        root: Path | None = None,
+        *,
+        smoke: bool = False,
+        create: bool = True,
+    ) -> None:
         self.name = name
         self.smoke = smoke
         base = root or artifacts_root()
         self.dir = (base / "smoke" if smoke else base) / name
-        self.dir.mkdir(parents=True, exist_ok=True)
+        if create:  # read-only callers (the demo) pass create=False
+            self.dir.mkdir(parents=True, exist_ok=True)
 
     @property
     def fp32_source(self) -> Path:

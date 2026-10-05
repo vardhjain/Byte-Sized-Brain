@@ -109,7 +109,14 @@ def write_results(rows: list[dict[str, Any]], csv_path: str | Path) -> Path:
     kept: list[dict[str, Any]] = []
     if out.exists():
         with out.open(newline="", encoding="utf-8") as f:
-            kept = [r for r in csv.DictReader(f) if result_key(r) not in replaced]
+            reader = csv.DictReader(f)
+            absent = {"pipeline", "arch", "emulated"} - set(reader.fieldnames or [])
+            if absent:
+                raise ValueError(
+                    f"{out} is not a results file this version can merge into "
+                    f"(missing columns: {sorted(absent)}). Move it aside and rerun."
+                )
+            kept = [r for r in reader if result_key(r) not in replaced]
     with out.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(
             f, fieldnames=RESULT_COLUMNS, extrasaction="ignore", lineterminator="\n"

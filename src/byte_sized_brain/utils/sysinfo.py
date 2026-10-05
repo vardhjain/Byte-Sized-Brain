@@ -37,9 +37,10 @@ _ARCH_ALIASES = {
 }
 
 
-def normalize_arch(machine: str | None) -> str:
+def normalize_arch(machine: object) -> str:
     """Canonical architecture name, e.g. ``AMD64`` and ``x86_64`` both become ``x86_64``."""
-    raw = (machine or "").strip()
+    # Anything that is not text (a missing CSV cell read as NaN, say) is unknown.
+    raw = machine.strip() if isinstance(machine, str) else ""
     if not raw:
         return "unknown"
     return _ARCH_ALIASES.get(raw.lower(), raw.lower())

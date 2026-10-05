@@ -175,7 +175,12 @@ def run_demo(
     if pipeline not in SUPPORTED:
         raise ValueError(f"demo supports {SUPPORTED}, got {pipeline!r}")
     cfg = load_config(config or pipeline, smoke=smoke)
-    paths = Paths(cfg.name, smoke=smoke)
+    if cfg.name != pipeline:
+        raise ValueError(
+            f"{config} configures the {cfg.name!r} pipeline, but the demo was asked "
+            f"for {pipeline!r}."
+        )
+    paths = Paths(cfg.name, smoke=smoke, create=False)
     texts = list(texts) if texts else list(DEFAULT_TEXTS)
 
     expected = paths.onnx("fp32") if pipeline == "distilbert_imdb" else paths.tflite("fp32")

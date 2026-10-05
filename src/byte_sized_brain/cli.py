@@ -58,7 +58,16 @@ def _do_train(cfg: PipelineConfig, paths: Paths) -> None:
     log.info("[%s] trained, baseline FP32 accuracy: %.4f", cfg.name, acc)
 
 
+def _rerun_hint(stage: str, cfg: PipelineConfig, paths: Paths) -> str:
+    return f"Run `bsb {stage} {cfg.name}{' --smoke' if paths.smoke else ''}` first."
+
+
 def _do_convert(cfg: PipelineConfig, paths: Paths) -> None:
+    if not paths.fp32_source.exists():
+        raise FileNotFoundError(
+            f"No trained {cfg.name} model at {paths.fp32_source}. "
+            + _rerun_hint("train", cfg, paths)
+        )
     variants = get_pipeline(cfg.name).convert(cfg, paths)
     for v in variants:
         log.info("[%s] wrote %s (%s)", cfg.name, v.path, v.quantization)
@@ -67,7 +76,14 @@ def _do_convert(cfg: PipelineConfig, paths: Paths) -> None:
 def _do_benchmark(cfg: PipelineConfig, paths: Paths) -> None:
     from .benchmark import write_results
 
-    rows = get_pipeline(cfg.name).benchmark(cfg, paths)
+    pipeline = get_pipeline(cfg.name)
+    # Check before the datasets are loaded, which can take a while.
+    missing = [v.path for v in pipeline.variants(cfg, paths) if not v.path.exists()]
+    if missing:
+        raise FileNotFoundError(
+            f"Missing artifact {missing[0]}. " + _rerun_hint("convert", cfg, paths)
+        )
+    rows = pipeline.benchmark(cfg, paths)
     out = write_results(rows, paths.results_csv)
     log.info("[%s] wrote %d result rows -> %s", cfg.name, len(rows), out)
 
@@ -182,9 +198,11 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         _run_stages(args.pipeline, args, stage_map[args.command])
-    except Exception as exc:  # log a one-line summary, then keep the traceback for debugging
+    except (FileNotFoundError, ValueError) as exc:
+        # Usage problems (a missing artifact, a bad config or option) get a one-line
+        # message. Anything else is a real bug and keeps its traceback.
         log.error("%s failed: %s", args.command, exc)
-        raise
+        return 1
     return 0
 
 
