@@ -13,6 +13,6 @@ import os
 # refuses to import its Trainer unless the separate tf-keras package is present.
 os.environ.setdefault("USE_TF", "0")
 
-__version__ = "0.3.2"
+__version__ = "0.4.0"
 
 __all__ = ["__version__"]
