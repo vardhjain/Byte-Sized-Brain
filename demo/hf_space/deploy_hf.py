@@ -237,7 +237,10 @@ def main() -> int:
     )
 
     print("Uploading the Space.")
-    api.create_repo(space_repo, repo_type="space", space_sdk="gradio", exist_ok=True)
+    # Only create the Space when it is missing. Hugging Face rejects the create call
+    # for a Gradio Space on a free account, even when the Space already exists.
+    if not api.repo_exists(space_repo, repo_type="space"):
+        api.create_repo(space_repo, repo_type="space", space_sdk="gradio")
     api.add_space_variable(
         space_repo,
         "BSB_MODEL_REPO",
