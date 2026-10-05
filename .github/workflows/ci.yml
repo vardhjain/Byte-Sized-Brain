@@ -80,8 +80,14 @@ jobs:
         run: pip install -c requirements.txt -e ".[dev]"
       - name: Show the environment
         run: bsb info
-      - name: Fast tests
-        run: pytest -m "not smoke"
+      - name: Fast tests with coverage
+        run: pytest -m "not smoke" --cov --cov-report=term --cov-report=markdown:coverage.md
+      # Shown on the run's summary page. One copy is enough.
+      - name: Publish the coverage table
+        if: matrix.arch == 'x86_64' && matrix.python == '3.11'
+        run: |
+          echo "## Coverage of the fast tests (no ML frameworks installed)" >> "$GITHUB_STEP_SUMMARY"
+          cat coverage.md >> "$GITHUB_STEP_SUMMARY"
 
   onnx-and-demo-tests:
     name: ONNX and hosted-demo tests

@@ -22,7 +22,7 @@ install-dev: ## Editable install with every framework, dev and docs tooling (pin
 	pip install -c requirements.txt -e ".[all,dev,docs]"
 
 # ── Quality ──────────────────────────────────────────────────────────────
-.PHONY: lint fmt typecheck test smoke check
+.PHONY: lint fmt typecheck test coverage smoke check
 lint: ## Ruff lint + formatting check (what CI runs)
 	ruff check .
 	ruff format --check .
@@ -36,6 +36,9 @@ typecheck: ## mypy
 
 test: ## Fast tests (no training, no dataset downloads)
 	pytest -m "not smoke" tests
+
+coverage: ## Fast tests with a coverage report
+	pytest -m "not smoke" --cov --cov-report=term tests
 
 smoke: ## End-to-end tiny train -> convert -> benchmark test for every pipeline
 	pytest -m smoke tests
