@@ -11,6 +11,10 @@ semantic versioning.
   runner and uploads the result files.
 - Coverage upload to Codecov and a coverage badge in the README.
 
+### Fixed
+- DistilBERT training works on a fresh install of the pinned requirements. It used to
+  fail unless the `tf-keras` package happened to be installed.
+
 ## [0.3.2] - 2026-10-05
 
 ### Added
