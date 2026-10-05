@@ -4,7 +4,7 @@ All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 semantic versioning.
 
-## [Unreleased]
+## [0.3.0] - 2026-10-05
 
 ### Added
 - An `agreement` column (how often a variant predicts the same label as its FP32

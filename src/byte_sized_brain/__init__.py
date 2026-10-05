@@ -6,6 +6,6 @@ ONNX dynamic INT8), and benchmarks the accuracy / size / latency / memory
 trade-offs on x86 and ARM64 with a single device-agnostic harness.
 """
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 
 __all__ = ["__version__"]
