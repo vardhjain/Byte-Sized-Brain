@@ -30,12 +30,14 @@ RESULT_COLUMNS = [
     "quantization",
     "size_mb",
     "accuracy",
+    "agreement",
     "latency_ms_mean",
     "latency_ms_p50",
     "latency_ms_p95",
     "rss_delta_mb",
     "peak_rss_mb",
     "num_samples",
+    "threads",
     "device",
     "arch",
     "os",
@@ -76,6 +78,9 @@ def build_row(
         "rss_delta_mb": round(float(metrics["rss_delta_mb"]), 3),
         "peak_rss_mb": round(float(metrics["peak_rss_mb"]), 3),
         "num_samples": int(metrics["num_samples"]),
+        # Optional, so rows can still be built from the core metrics alone.
+        "agreement": round(float(metrics["agreement"]), 4) if "agreement" in metrics else "",
+        "threads": int(metrics["threads"]) if "threads" in metrics else "",
         "lib_versions": json.dumps(library_versions(), sort_keys=True),
     }
     row.update(sysinfo)

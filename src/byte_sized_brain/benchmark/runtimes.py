@@ -26,9 +26,10 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import psutil
 
 
-def _load_tflite_interpreter(model_path: str) -> Any:
+def _load_tflite_interpreter(model_path: str, num_threads: int | None = None) -> Any:
     """Load with ``tf.lite.Interpreter``, or LiteRT (``ai-edge-litert``) without it.
 
     ``tf.lite.Interpreter`` is deprecated in favour of LiteRT but still ships with
@@ -44,10 +45,10 @@ def _load_tflite_interpreter(model_path: str) -> Any:
     except (ImportError, AttributeError):
         from ai_edge_litert.interpreter import Interpreter  # type: ignore
 
-        return Interpreter(model_path=model_path)
+        return Interpreter(model_path=model_path, num_threads=num_threads)
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", ".*Interpreter is deprecated.*")
-        return interpreter_cls(model_path=model_path)
+        return interpreter_cls(model_path=model_path, num_threads=num_threads)
 
 
 class TFLiteRunner:
@@ -55,7 +56,10 @@ class TFLiteRunner:
 
     def __init__(self, model_path: str | Path) -> None:
         self.path = str(model_path)
-        self.interp = _load_tflite_interpreter(self.path)
+        # The interpreter runs on one thread unless BSB_TFLITE_THREADS says otherwise.
+        requested = int(os.environ.get("BSB_TFLITE_THREADS", "0"))
+        self.threads = requested if requested > 0 else 1
+        self.interp = _load_tflite_interpreter(self.path, requested if requested > 0 else None)
         self.interp.allocate_tensors()
         self._in = self.interp.get_input_details()[0]
         self._out = self.interp.get_output_details()[0]
@@ -103,8 +107,10 @@ class OnnxRunner:
 
         self.path = str(model_path)
         opts = ort.SessionOptions()
-        # 0 lets ONNX Runtime pick (one thread per physical core).
-        opts.intra_op_num_threads = int(os.environ.get("BSB_ORT_THREADS", "0"))
+        # 0 lets ONNX Runtime pick, which is one thread per physical core.
+        requested = int(os.environ.get("BSB_ORT_THREADS", "0"))
+        opts.intra_op_num_threads = requested
+        self.threads = requested if requested > 0 else (psutil.cpu_count(logical=False) or 1)
         self.sess = ort.InferenceSession(self.path, opts, providers=["CPUExecutionProvider"])
         self.input_names = [i.name for i in self.sess.get_inputs()]
         self.output_names = [o.name for o in self.sess.get_outputs()]

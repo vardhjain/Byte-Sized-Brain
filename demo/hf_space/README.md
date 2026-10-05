@@ -38,10 +38,10 @@ review at a time on a desktop CPU.
 
 | Model                 | File size | Accuracy | Time per review |
 |-----------------------|----------:|---------:|----------------:|
-| Full precision (FP32) |  255.5 MB |    84.6% |           72 ms |
-| Quantized (INT8)      |   64.3 MB |    84.0% |           43 ms |
+| Full precision (FP32) |  255.5 MB |    84.6% |           99 ms |
+| Quantized (INT8)      |   64.3 MB |    84.0% |           55 ms |
 
-The quantized model is four times smaller and about 1.7 times faster, and it gives up
+The quantized model is four times smaller and about 1.8 times faster, and it gives up
 less than one point of accuracy. The two versions gave the same answer on 477 of the 500
 reviews (95%). The other 23 were close calls where the small rounding changes tipped the
 result, in both directions.

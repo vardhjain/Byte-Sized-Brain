@@ -4,6 +4,15 @@ All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 semantic versioning.
 
+## [Unreleased]
+
+### Added
+- An `agreement` column (how often a variant predicts the same label as its FP32
+  baseline) and a `threads` column in the result files. Benchmarks were re-run.
+- 95 percent confidence intervals for accuracy in `docs/report.md`.
+- `BSB_TFLITE_THREADS`, to set the TFLite interpreter's thread count.
+- Tests that check the committed result files against the configs and the README table.
+
 ## [0.2.1] - 2026-10-04
 
 ### Changed

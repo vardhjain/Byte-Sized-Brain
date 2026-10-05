@@ -92,6 +92,7 @@ def benchmark_variants(
         "onnxruntime": OnnxRunner,
     }
     rows: list[dict[str, Any]] = []
+    baseline: list[int] | None = None  # predictions of the first (FP32) variant
     for v in variants:
         if not Path(v.path).exists():
             smoke = " --smoke" if paths.smoke else ""
@@ -110,6 +111,13 @@ def benchmark_variants(
             decision_fn=decision_fn,
             prepare_fn=runner.prepare,
         )
+        metrics["threads"] = runner.threads
+        # Share of samples where this variant predicts what the baseline predicts.
+        predictions = metrics.pop("predictions")
+        baseline = predictions if baseline is None else baseline
+        metrics["agreement"] = sum(
+            a == b for a, b in zip(predictions, baseline, strict=True)
+        ) / len(predictions)
         del runner
         # Footprint of this variant alone, measured in a fresh process.
         metrics.update(measure_memory(v.runtime, v.path, samples[0]))

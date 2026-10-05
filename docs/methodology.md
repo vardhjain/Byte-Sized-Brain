@@ -13,6 +13,7 @@ records the same metrics in the same way for TFLite and ONNX Runtime.
 |---|---|
 | **Size (MB)** | On-disk size of the `.tflite` or `.onnx` file that is benchmarked, in MiB (1,048,576 bytes). |
 | **Accuracy** | Top-1 accuracy (argmax, or a 0.5 threshold for the LSTM) over `num_samples` test examples. Both variants of a model see exactly the same examples. |
+| **Agreement** | Share of those examples where the variant predicts the same label as its FP32 baseline. |
 | **Latency mean / p50 / p95 (ms)** | Wall-clock time of one model call on a single example. p95 shows tail behaviour the mean hides. |
 | **RSS delta (MB)** | How much the resident memory of a fresh process grows when it loads the model and runs it. |
 | **Peak RSS (MB)** | The highest resident memory that process reached, minus the level before the model was loaded. |
@@ -46,7 +47,8 @@ same architecture.
 
 TFLite models run on the interpreter's default XNNPACK delegate, for both float and
 integer models, on one thread. ONNX Runtime runs on its CPU execution provider and uses
-all physical cores by default (set `BSB_ORT_THREADS` to change that). The DistilBERT
+all physical cores by default. `BSB_TFLITE_THREADS` and `BSB_ORT_THREADS` change
+these, and every row records the count it used in its `threads` column. The DistilBERT
 latency is therefore not comparable with the TFLite latencies, only with its own FP32
 baseline. All committed numbers come from an Intel Core i7-10710U laptop CPU (6 cores,
 AVX2, no VNNI). Integer kernels gain most on CPUs with VNNI or on ARM, so the speedups
@@ -61,8 +63,10 @@ samples the 95 percent interval on an accuracy near 85 percent is about plus or 
 between a model and its quantized version are not meaningful. The CNN's 17-point drop is
 far outside this range.
 
-Equal accuracy can still hide changed predictions. The FP32 and INT8 DistilBERT models
-agree on 477 of the 500 reviews, and the 23 disagreements go in both directions.
+Equal accuracy can still hide changed predictions, which is why each row also records
+`agreement`. The FP32 and INT8 DistilBERT models agree on 477 of the 500 reviews, and
+the 23 disagreements go in both directions. `docs/report.md` lists the agreement and the
+95 percent interval for every variant.
 
 Latency comes from one run on a laptop. Run-to-run differences of 10 to 20 percent are
 normal, and sub-millisecond figures are close to the resolution of the timer, so read

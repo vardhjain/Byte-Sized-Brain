@@ -18,7 +18,8 @@ Every model came out 69 to 75 percent smaller. Three of the four kept their accu
 with the largest change being 3 of 500 test reviews. The MobileNetV2 photo classifier is
 the exception. It dropped 17 points, and an ablation traced the loss to 8-bit
 activations in its depthwise layers, not to its weights. Speed depended on the model.
-DistilBERT ran about 1.8 times faster, while the photo classifier ran slightly slower.
+DistilBERT ran about 1.8 times faster, while the photo classifier ran about 10 percent
+slower.
 
 See the [full results](report.md) for the per-model breakdown, and the
 [methodology](methodology.md) for exactly how every number is measured and what its

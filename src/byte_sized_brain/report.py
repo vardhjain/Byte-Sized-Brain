@@ -69,6 +69,15 @@ def _baseline_map(df: pd.DataFrame) -> dict[tuple, pd.Series]:
     return {(r["pipeline"], r["arch"], r["emulated"]): r for _, r in base.iterrows()}
 
 
+def wilson_halfwidth(accuracy: float, n: int, z: float = 1.96) -> float:
+    """Half-width of the 95 percent Wilson score interval for an accuracy."""
+    if n <= 0:
+        return float("nan")
+    denom = 1 + z * z / n
+    spread = z * ((accuracy * (1 - accuracy) / n + z * z / (4 * n * n)) ** 0.5)
+    return spread / denom
+
+
 def summarize(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
@@ -92,6 +101,14 @@ def summarize(df: pd.DataFrame) -> pd.DataFrame:
                 "emulated": bool(r["emulated"]),
                 "size_mb": round(r["size_mb"], 3),
                 "accuracy": round(r["accuracy"], 4),
+                "accuracy_ci95": "±"
+                + format(100 * wilson_halfwidth(r["accuracy"], int(r["num_samples"])), ".1f")
+                + " pts"
+                if "num_samples" in r
+                else "",
+                "agreement": round(r["agreement"], 4)
+                if "agreement" in r and pd.notna(r["agreement"])
+                else "",
                 "latency_ms_mean": round(r["latency_ms_mean"], 3),
                 "size_reduction_%": round(size_red, 1),
                 "latency_speedup_x": round(lat_speedup, 2),
@@ -340,6 +357,10 @@ def generate_report(results_dir: Path | None = None) -> Path | None:
         "`latency_speedup_x` is FP32 time divided by variant time, so above 1 means "
         "faster and below 1 means slower. `accuracy_delta` is the change in accuracy as "
         "a fraction (-0.173 means 17.3 percentage points lower).",
+        "- `accuracy_ci95` is the half-width of the 95 percent Wilson interval for the "
+        "accuracy at that sample size, so a difference smaller than it is within noise. "
+        "`agreement` is the share of test examples where the variant gives the same "
+        "answer as its FP32 baseline.",
         "- All three are computed against each pipeline's own FP32 baseline, within the "
         "same architecture. Sizes are in MiB (1,048,576 bytes) and latency is the mean "
         "time for one input, in milliseconds.",

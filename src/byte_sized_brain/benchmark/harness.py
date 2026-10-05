@@ -48,18 +48,19 @@ def benchmark_inference(
 
     gc.collect()
     latencies = np.empty(n, dtype=np.float64)
-    correct = 0
+    predictions: list[int] = []
 
     for i in range(n):
         sample = prepared(i)  # outside the timed block
         t0 = time.perf_counter()
         out = predict_fn(sample)
         latencies[i] = (time.perf_counter() - t0) * 1000.0
-        if decision_fn(out) == int(labels[i]):
-            correct += 1
+        predictions.append(decision_fn(out))
 
+    correct = sum(p == int(labels[i]) for i, p in enumerate(predictions))
     return {
         "accuracy": correct / n,
+        "predictions": predictions,
         "latency_ms_mean": float(latencies.mean()),
         "latency_ms_p50": float(np.percentile(latencies, 50)),
         "latency_ms_p95": float(np.percentile(latencies, 95)),
