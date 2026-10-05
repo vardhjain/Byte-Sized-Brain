@@ -64,6 +64,3 @@ desktop.ini
 
 # mkdocs build output.
 /site/
-
-# Private working notes.
-/PROJECT_PLAN.md

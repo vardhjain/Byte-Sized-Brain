@@ -1,0 +1,61 @@
+name: ARM64 benchmark
+
+# Trains, converts and benchmarks all four pipelines with their full configs on
+# GitHub's native ARM64 runner, then uploads the result files. It is started by
+# hand from the Actions tab, because it takes a few hours. The result rows are
+# committed afterwards, next to the x86 rows, by whoever started the run.
+on:
+  workflow_dispatch:
+    inputs:
+      pipelines:
+        description: "Pipeline to run (a name from `bsb list`, or all)"
+        required: true
+        default: "all"
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    name: Full benchmark on native ARM64
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 350
+    env:
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      PYTHONUNBUFFERED: "1"
+      TF_CPP_MIN_LOG_LEVEL: "2"
+      TOKENIZERS_PARALLELISM: "false"
+      PIPELINES: ${{ inputs.pipelines }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      # Same install as the Docker images: a CPU-only torch, then the pinned set.
+      - name: Install the pinned environment
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu torch==2.7.0
+          pip install -r requirements.txt
+          pip install --no-deps -e .
+      # /proc/cpuinfo has no model name on these machines, so label the rows here.
+      - name: Describe the machine
+        run: |
+          lscpu
+          cpu="$(lscpu | sed -n 's/^Model name: *//p' | head -n 1)"
+          echo "BSB_DEVICE=${cpu:-ARM64} (GitHub-hosted runner, $(nproc) vCPU)" >> "$GITHUB_ENV"
+      - name: Show the environment
+        run: bsb info
+      - name: Train, convert and benchmark
+        run: bsb run "$PIPELINES"
+      - name: Show the ARM64 rows
+        run: grep -h "aarch64" benchmarks/results/*.csv | cut -d, -f2,6,8-13,17,19
+      - name: Upload the result files
+        uses: actions/upload-artifact@v7
+        with:
+          name: arm64-results
+          path: benchmarks/results/*.csv
+          if-no-files-found: error

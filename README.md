@@ -7,6 +7,7 @@
 **[Live demo](https://huggingface.co/spaces/vardhjain20/byte-sized-brain-demo)** &nbsp;·&nbsp; **[Full results](docs/report.md)** &nbsp;·&nbsp; **[How it is measured](docs/methodology.md)** &nbsp;·&nbsp; **[Docs site](https://vardhjain.github.io/Byte-Sized-Brain/)**
 
 [![CI](https://github.com/vardhjain/Byte-Sized-Brain/actions/workflows/ci.yml/badge.svg)](https://github.com/vardhjain/Byte-Sized-Brain/actions/workflows/ci.yml)
+[![coverage](https://codecov.io/gh/vardhjain/Byte-Sized-Brain/branch/main/graph/badge.svg)](https://codecov.io/gh/vardhjain/Byte-Sized-Brain)
 [![python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)](pyproject.toml)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 

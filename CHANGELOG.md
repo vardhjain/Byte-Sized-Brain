@@ -4,6 +4,13 @@ All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 semantic versioning.
 
+## [Unreleased]
+
+### Added
+- A manually started workflow that runs the full benchmark on GitHub's native ARM64
+  runner and uploads the result files.
+- Coverage upload to Codecov and a coverage badge in the README.
+
 ## [0.3.2] - 2026-10-05
 
 ### Added
