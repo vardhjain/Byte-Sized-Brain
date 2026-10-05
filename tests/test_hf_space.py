@@ -31,7 +31,7 @@ class _FakeTokenizer:
 
 
 class _FakeSession:
-    def __init__(self, path, providers=None):
+    def __init__(self, path, sess_options=None, providers=None):
         self.path = path
 
     def get_inputs(self):

@@ -60,10 +60,32 @@ EXAMPLES = [
 ]
 
 
+def _usable_cpus() -> int:
+    """CPUs this container may actually use, not the host machine's core count.
+
+    ONNX Runtime sizes its thread pool from the host by default. On a shared Space
+    that means far more threads than the two virtual CPUs it is allowed, and the
+    container gets throttled, which made the larger model's timing jump around.
+    """
+    try:
+        with open("/sys/fs/cgroup/cpu.max", encoding="utf-8") as f:
+            quota, period = f.read().split()
+        if quota != "max":
+            return max(1, int(int(quota) / int(period)))
+    except (OSError, ValueError):
+        pass
+    try:
+        return max(1, len(os.sched_getaffinity(0)))
+    except AttributeError:  # not available on Windows or macOS
+        return max(1, os.cpu_count() or 1)
+
+
 def _load(variant: str) -> tuple[ort.InferenceSession, float]:
     """Download one ONNX graph and return its session and its real size in MB."""
     path = hf_hub_download(MODEL_REPO, f"distilbert_imdb_{variant}.onnx")
-    session = ort.InferenceSession(path, providers=["CPUExecutionProvider"])
+    options = ort.SessionOptions()
+    options.intra_op_num_threads = _usable_cpus()
+    session = ort.InferenceSession(path, options, providers=["CPUExecutionProvider"])
     return session, os.path.getsize(path) / 1024**2
 
 
