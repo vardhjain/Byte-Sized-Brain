@@ -3,7 +3,7 @@ cff-version: 1.2.0
 message: "If you use this software or its benchmark results, please cite it as below."
 type: software
 title: "Byte-Sized Brain"
-version: 0.3.0
+version: 0.3.1
 abstract: >-
   A reproducible benchmark of post-training quantization. It trains a feed-forward
   network on MNIST, a MobileNetV2 CNN on CIFAR-10, an LSTM on IMDB and DistilBERT on

@@ -4,7 +4,7 @@ All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 semantic versioning.
 
-## [Unreleased]
+## [0.3.1] - 2026-10-05
 
 ### Changed
 - The README table calls a timing difference under 15 percent "about the same",
