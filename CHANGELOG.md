@@ -10,6 +10,8 @@ semantic versioning.
 - A manually started workflow that runs the full benchmark on GitHub's native ARM64
   runner and uploads the result files.
 - Coverage upload to Codecov and a coverage badge in the README.
+- Native ARM64 results for all four pipelines (Arm Neoverse-N2), committed next to
+  the x86 rows and summarized in the README.
 
 ### Fixed
 - DistilBERT training works on a fresh install of the pinned requirements. It used to

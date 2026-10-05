@@ -78,6 +78,13 @@ def wilson_halfwidth(accuracy: float, n: int, z: float = 1.96) -> float:
     return spread / denom
 
 
+def headline_arch(df: pd.DataFrame) -> str:
+    """The architecture the README table shows: the one with the most rows, x86_64 on a tie."""
+    counts = df["arch"].value_counts()
+    top = sorted(counts[counts == counts.max()].index)
+    return "x86_64" if "x86_64" in top else top[0]
+
+
 def summarize(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
@@ -330,9 +337,7 @@ def generate_report(results_dir: Path | None = None) -> Path | None:
     headline = native if not native.empty else df
     # Most-benchmarked native architecture. A tie goes to x86_64, so adding ARM rows
     # for the same pipelines never silently flips the README headline.
-    counts = headline["arch"].value_counts()
-    top = sorted(counts[counts == counts.max()].index)
-    primary_arch = "x86_64" if "x86_64" in top else top[0]
+    primary_arch = headline_arch(headline)
 
     chart_ok = False
     try:

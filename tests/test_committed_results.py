@@ -16,7 +16,7 @@ import pytest
 from byte_sized_brain.benchmark import RESULT_COLUMNS
 from byte_sized_brain.config import Paths, load_config
 from byte_sized_brain.registry import all_names, get_pipeline
-from byte_sized_brain.report import _readme_table, load_results
+from byte_sized_brain.report import _readme_table, headline_arch, load_results
 
 REPO = Path(__file__).resolve().parents[1]
 RESULTS = REPO / "benchmarks" / "results"
@@ -52,6 +52,6 @@ def test_committed_results_are_full_runs_in_the_current_schema(
 
 def test_readme_table_matches_the_committed_results() -> None:
     results = load_results(RESULTS)
-    arch = results[~results["emulated"]]["arch"].mode().iloc[0]
+    arch = headline_arch(results[~results["emulated"]])
     readme = (REPO / "README.md").read_text(encoding="utf-8")
     assert _readme_table(results, arch) in readme, "run `bsb report` to refresh the README"

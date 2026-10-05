@@ -9,7 +9,7 @@ abstract: >-
   network on MNIST, a MobileNetV2 CNN on CIFAR-10, an LSTM on IMDB and DistilBERT on
   IMDB, converts each to TFLite or ONNX Runtime with INT8 or dynamic-range
   quantization, and measures model size, accuracy, latency and memory with one shared
-  harness. Committed results are from an x86-64 CPU, and the same code runs on ARM64.
+  harness. Committed results cover an x86-64 laptop CPU and an ARM64 server CPU.
 authors:
   - given-names: Vardh
     family-names: Jain

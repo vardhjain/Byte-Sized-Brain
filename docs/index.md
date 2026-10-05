@@ -18,8 +18,9 @@ Every model came out 69 to 75 percent smaller. Three of the four kept their accu
 with the largest change being 3 of 500 test reviews. The MobileNetV2 photo classifier is
 the exception. It dropped 17 points, and an ablation traced the loss to 8-bit
 activations in its depthwise layers, not to its weights. Speed depended on the model.
-DistilBERT ran about 1.8 times faster, while the photo classifier ran about 10 percent
-slower.
+On an x86 laptop DistilBERT ran about 1.8 times faster and the photo classifier no
+faster at all. On an ARM64 server CPU every quantized model was faster, up to 3.6
+times.
 
 See the [full results](report.md) for the per-model breakdown, and the
 [methodology](methodology.md) for exactly how every number is measured and what its

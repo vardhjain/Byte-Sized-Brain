@@ -42,10 +42,12 @@ mistakes out of 500 test reviews and well within sampling noise.
 getting 173 more of 1,000 test photos wrong. The [investigation below](#why-the-photo-classifier-lost-accuracy)
 shows where that loss comes from and how to avoid nearly all of it.
 
-**Speed depended on the model.** On a laptop processor, DistilBERT and the tiny
-handwriting reader both answered about 1.8 times faster. The LSTM and the photo
-classifier took about the same time as before (within the normal run-to-run
-variation). Smaller does not automatically mean faster.
+**Speed depended on the model and on the processor.** On an x86 laptop, DistilBERT
+and the tiny handwriting reader both answered about 1.8 times faster, while the LSTM
+and the photo classifier took about the same time as before. On an ARM server
+processor every shrunken model was faster, from 1.3 times for the LSTM to 3.6 times
+for DistilBERT. Smaller does not automatically mean faster, and the answer changes
+with the hardware.
 
 Each row below compares the original model with its shrunken version.
 
@@ -242,10 +244,31 @@ The [methodology](docs/methodology.md) covers each choice in detail.
 
 ## Running on ARM processors
 
-Phones, Raspberry Pis and many cloud servers use ARM processors. Every number above is
-from x86, and no ARM results are committed yet. What exists today is the tooling.
-CI runs the test suite and the TensorFlow Lite conversion on a real ARM64 machine for
-every change to `main` and every pull request, and a Docker image runs all four models under ARM emulation.
+Phones, Raspberry Pis and many cloud servers use ARM processors, so the whole benchmark
+was also run on one. The table above is from the x86 laptop. The table below is the
+same code and configs on a GitHub-hosted ARM64 machine (Arm Neoverse-N2, 4 virtual
+CPUs), where each model was trained, shrunk and measured from scratch.
+
+| Model (dataset) | Accuracy | Time per input | Memory |
+| --- | --- | --- | --- |
+| Digit reader (MNIST) | 97.0% → 97.1% | 0.011 → 0.004 ms (2.5× faster) | 3.65 → 3.00 MB |
+| Photo classifier (CIFAR-10) | 85.4% → 68.8% (-16.6 pts) | 2.97 → 1.19 ms (2.5× faster) | 21.6 → 9.00 MB |
+| Review sentiment, LSTM (IMDB) | 85.0% → 85.0% | 0.51 → 0.41 ms (1.3× faster) | 5.13 → 3.45 MB |
+| Review sentiment, DistilBERT (IMDB) | 84.8% → 83.4% (-1.4 pts) | 61.8 → 16.9 ms (3.6× faster) | 347.2 → 115.1 MB |
+
+File sizes are the same as on x86. The accuracy story repeats, including the photo
+classifier's drop, and the speed story changes. The fully 8-bit photo classifier, which
+was no faster on the laptop, runs 2.5 times faster here, because ARM processors have
+fast 8-bit arithmetic that this laptop's processor lacks. Two cautions apply. The ARM
+models were trained separately, so their accuracies differ slightly from the x86 ones,
+and a shared cloud machine is a noisier place to time things than a dedicated one.
+These rows live in the same result files as the x86 rows, and
+[docs/report.md](docs/report.md) lists both.
+
+The run is repeatable from the Actions tab (the "ARM64 benchmark" workflow). CI also
+runs the test suite and the TensorFlow Lite conversion on ARM64 for every change to
+`main` and every pull request, and a Docker image runs all four models under ARM
+emulation.
 
 ```bash
 make docker-build-arm   # build an ARM (aarch64) Docker image, emulated with QEMU
@@ -253,10 +276,11 @@ make benchmark-arm      # a tiny run of every model inside it, to prove they loa
 ```
 
 Emulation translates every ARM instruction in software, so its timings are not
-meaningful and its results stay out of the report. For real ARM timings, run
-`BSB_DEVICE=<machine-name> bsb run all` on an ARM cloud machine such as AWS Graviton or
-Oracle Ampere. Each result row is stamped with its processor architecture, so ARM rows
-sit next to the x86 rows without replacing them.
+meaningful and its results stay out of the report. To add timings from your own ARM
+machine (a Raspberry Pi, AWS Graviton or Oracle Ampere), run
+`BSB_DEVICE=<machine-name> bsb run all` there. Each result row is stamped with its
+processor architecture, so new rows sit next to the existing ones without replacing
+them.
 
 ## Project layout
 
@@ -287,8 +311,9 @@ artifacts/             trained models (not committed, rebuilt on demand)
 - DistilBERT is also trained on a reduced budget (3,000 reviews, inputs cut to 128
   tokens), which is why it scores no better than the LSTM here. The comparison between
   its two versions does not depend on that.
-- All committed numbers come from one x86 laptop processor. Speed results, especially,
-  can differ on ARM chips or with other thread settings.
+- The committed numbers come from two machines, one x86 laptop and one shared ARM64
+  cloud runner, each measured once. Speed results can differ on other chips or with
+  other thread settings.
 
 ## Credits
 

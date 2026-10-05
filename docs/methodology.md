@@ -50,9 +50,11 @@ integer models, on one thread. ONNX Runtime runs on its CPU execution provider a
 all physical cores by default. `BSB_TFLITE_THREADS` and `BSB_ORT_THREADS` change
 these, and every row records the count it used in its `threads` column. The DistilBERT
 latency is therefore not comparable with the TFLite latencies, only with its own FP32
-baseline. All committed numbers come from an Intel Core i7-10710U laptop CPU (6 cores,
-AVX2, no VNNI). Integer kernels gain most on CPUs with VNNI or on ARM, so the speedups
-here are specific to this machine.
+baseline. The x86 numbers come from an Intel Core i7-10710U laptop CPU (6 cores,
+AVX2, no VNNI), and the ARM64 numbers from an Arm Neoverse-N2 with 4 virtual CPUs.
+Integer kernels gain most on CPUs with VNNI or on ARM, which is what the results
+show. Static INT8 gives no speedup for the CNN on the laptop and 2.5 times on the
+Neoverse-N2.
 
 ### Sample sizes and noise
 
@@ -99,8 +101,15 @@ Flex delegate.
 
 ## 3. Running on ARM64
 
-All committed results are from x86. The project offers three ways to exercise ARM64,
-and the first two need no ARM hardware at all.
+The committed results cover x86 and native ARM64. The ARM64 rows were produced by the
+"ARM64 benchmark" workflow, which runs `bsb run all` with the full configs on a
+GitHub-hosted ARM64 runner (Arm Neoverse-N2, 4 vCPUs) and uploads the result files.
+Each pipeline is trained on the runner itself, so the ARM models are separately
+trained copies and their accuracies differ slightly from the x86 ones. A hosted
+runner is a shared virtual machine, so its timings are noisier than a dedicated
+machine's.
+
+Beyond that workflow, the project offers three more ways to exercise ARM64.
 
 ### Continuous integration on native ARM64
 
@@ -199,4 +208,5 @@ compares each row only with the FP32 baseline from the same architecture.
   reviews and tokenization, so they should not be compared with each other.
 - **Dynamic INT8 in ONNX Runtime computes activation ranges per batch**, so its
   accuracy can differ slightly at other batch sizes. Everything here is batch size 1.
-- **One machine.** All committed numbers are from one x86 laptop CPU.
+- **Two machines, one run each.** The committed numbers are from one x86 laptop CPU
+  and one shared ARM64 cloud runner.
