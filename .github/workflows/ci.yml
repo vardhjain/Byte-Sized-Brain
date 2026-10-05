@@ -83,6 +83,34 @@ jobs:
       - name: Fast tests
         run: pytest -m "not smoke"
 
+  onnx-and-demo-tests:
+    name: ONNX and hosted-demo tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            pyproject.toml
+            demo/hf_space/requirements.txt
+      # These tests skip themselves when a library is missing, so this job
+      # installs ONNX Runtime and the hosted demo's own requirements, then
+      # fails if anything was skipped after all.
+      - name: Install the package, ONNX and the demo requirements
+        run: |
+          pip install -c requirements.txt -e ".[dev]" onnx
+          pip install -c requirements.txt -r demo/hf_space/requirements.txt
+      - name: ONNX round trip, memory probe and hosted demo
+        run: |
+          pytest tests/test_onnx_roundtrip.py tests/test_memory.py tests/test_hf_space.py -rs | tee out.txt
+          ! grep -q "SKIPPED" out.txt
+
   tflite-smoke:
     name: TFLite smoke (${{ matrix.arch }}, Python ${{ matrix.python }})
     runs-on: ${{ matrix.runner }}

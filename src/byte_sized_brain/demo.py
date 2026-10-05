@@ -11,6 +11,7 @@ Requires the artifacts to exist (run ``bsb run <pipeline>`` first, or
 
 from __future__ import annotations
 
+import functools
 import time
 from dataclasses import dataclass
 
@@ -86,15 +87,40 @@ def _encode_imdb(text: str, word_index: dict[str, int], num_words: int, max_len:
     return pad_sequences([tokens], maxlen=max_len).astype(np.float32)[0]
 
 
-def _demo_distilbert(cfg: PipelineConfig, paths: Paths, texts: list[str]) -> list[DemoRow]:
-    from transformers import AutoTokenizer
-
+@functools.lru_cache(maxsize=8)
+def _onnx_runner(path: str):
     from .benchmark import OnnxRunner
 
-    tokenizer = AutoTokenizer.from_pretrained(paths.fp32_source)
+    return OnnxRunner(path)
+
+
+@functools.lru_cache(maxsize=8)
+def _tflite_runner(path: str):
+    from .benchmark import TFLiteRunner
+
+    return TFLiteRunner(path)
+
+
+@functools.lru_cache(maxsize=4)
+def _tokenizer(model_dir: str):
+    from transformers import AutoTokenizer
+
+    return AutoTokenizer.from_pretrained(model_dir)
+
+
+@functools.lru_cache(maxsize=1)
+def _word_index() -> dict[str, int]:
+    from tensorflow.keras.datasets import imdb
+
+    return imdb.get_word_index()
+
+
+def _demo_distilbert(cfg: PipelineConfig, paths: Paths, texts: list[str]) -> list[DemoRow]:
+    # Loaders are cached, so the web demo does not reload the models on every click.
+    tokenizer = _tokenizer(str(paths.fp32_source))
     seq_len = cfg.data.max_len or 128
     variants = [("fp32", paths.onnx("fp32")), ("int8", paths.onnx("int8"))]
-    runners = {name: (OnnxRunner(p), size_mb(p)) for name, p in variants if p.exists()}
+    runners = {name: (_onnx_runner(str(p)), size_mb(p)) for name, p in variants if p.exists()}
 
     rows: list[DemoRow] = []
     for text in texts:
@@ -114,16 +140,12 @@ def _demo_distilbert(cfg: PipelineConfig, paths: Paths, texts: list[str]) -> lis
 
 
 def _demo_rnn(cfg: PipelineConfig, paths: Paths, texts: list[str]) -> list[DemoRow]:
-    from tensorflow.keras.datasets import imdb
-
-    from .benchmark import TFLiteRunner
-
     num_words = cfg.data.num_words or 10000
     max_len = cfg.data.max_len or 200
-    word_index = imdb.get_word_index()
+    word_index = _word_index()
 
     variants = [("fp32", paths.tflite("fp32")), ("dynamic_range", paths.tflite("dynamic_range"))]
-    runners = {name: (TFLiteRunner(p), size_mb(p)) for name, p in variants if p.exists()}
+    runners = {name: (_tflite_runner(str(p)), size_mb(p)) for name, p in variants if p.exists()}
 
     rows: list[DemoRow] = []
     for text in texts:

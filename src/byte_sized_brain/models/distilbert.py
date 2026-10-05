@@ -1,6 +1,6 @@
 """DistilBERT fine-tuning for IMDB sentiment.
 
-Targets transformers 4.45+ where ``evaluation_strategy`` is now ``eval_strategy``
+Targets transformers 4.46+ where ``evaluation_strategy`` is now ``eval_strategy``
 and ``Trainer(tokenizer=...)`` is now ``processing_class=...``. ``fp16`` is forced
 off (this runs on CPU), TensorBoard logging is disabled (``report_to=[]``) so no
 ``runs/`` scratch is created, and the final model + tokenizer are saved to

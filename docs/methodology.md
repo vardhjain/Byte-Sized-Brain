@@ -100,11 +100,11 @@ Flex delegate.
 ## 3. Running on ARM64
 
 All committed results are from x86. The project offers three ways to exercise ARM64,
-and none of them needs special hardware.
+and the first two need no ARM hardware at all.
 
 ### Continuous integration on native ARM64
 
-On every push, CI runs the fast tests and the TensorFlow Lite conversion and smoke
+On every push to `main` and every pull request, CI runs the fast tests and the TensorFlow Lite conversion and smoke
 pipelines on GitHub's native ARM64 runners as well as on x86. This shows the code and
 the conversions work on ARM. It produces no published benchmark numbers.
 

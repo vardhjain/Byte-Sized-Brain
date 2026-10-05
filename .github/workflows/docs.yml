@@ -59,7 +59,7 @@ jobs:
   deploy:
     name: Deploy to GitHub Pages
     needs: build
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/Byte-Sized-Brain'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # Only this job may publish, and only through the github-pages environment.

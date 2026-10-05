@@ -4,6 +4,22 @@ All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 semantic versioning.
 
+## [Unreleased]
+
+### Changed
+- The README table calls a timing difference under 15 percent "about the same",
+  which matches the run-to-run variation of the measurements.
+- The Streamlit demo describes the result it actually got, keeps the models loaded
+  between clicks and shows readable model names.
+- CI now runs the ONNX round trip, memory probe and hosted-demo tests, which were
+  previously skipped there.
+
+### Fixed
+- The documentation site deploys from `main` again. The deploy step was still tied
+  to the old branch name, so the site had not updated since the rename.
+- The README shows the hosted demo next to its link, and the local Streamlit app
+  next to its own instructions.
+
 ## [0.3.0] - 2026-10-05
 
 ### Added
@@ -42,7 +58,7 @@ unchanged.
 - `bsb demo --smoke`, `make check`, `make smoke-all`, `make ablation-cnn` and `make docs`.
 - A plain-language results table in the README, including memory.
 - Tests for the CLI, the memory probe, the ONNX round trip, CNN fine-tuning, the hosted
-  demo and report generation.
+  demo and the README results table.
 - `.editorconfig`, a pre-commit configuration, Dependabot, `CITATION.cff` and explicit
   line-ending rules.
 

@@ -137,11 +137,15 @@ def _fmt_ms(x: float) -> str:
 
 
 def _speed_words(fp32_ms: float, q_ms: float) -> str:
-    """'1.7× faster', '1.5× slower' or 'about the same' (within 5 percent)."""
+    """'1.7× faster', '1.5× slower' or 'about the same'.
+
+    Anything within 15 percent counts as the same, because single-run timings on a
+    laptop move by that much from one run to the next.
+    """
     if not fp32_ms or not q_ms:
         return "n/a"
     ratio = fp32_ms / q_ms
-    if 0.95 <= ratio <= 1.05:
+    if 0.85 <= ratio <= 1.15:
         return "about the same"
     return f"{ratio:.1f}× faster" if ratio > 1 else f"{1 / ratio:.1f}× slower"
 
