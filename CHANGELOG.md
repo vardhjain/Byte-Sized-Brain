@@ -4,6 +4,21 @@ All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 semantic versioning.
 
+## [0.2.1] - 2026-10-04
+
+### Changed
+- The default branch is now `main`.
+- Dependabot proposes updates for the dev tools only. The ML packages stay pinned to
+  the versions behind the committed results.
+- Updated the pinned dev tools (pytest, ruff, mypy, mkdocs-material).
+
+### Fixed
+- The hosted demo limits ONNX Runtime to the CPUs its container may use, which stops
+  the full-precision timing from jumping between runs.
+- The deploy script no longer tries to create a Space that already exists, which
+  Hugging Face rejects on free accounts.
+- The `onnx` pytest marker is declared, so newer pytest releases accept the test suite.
+
 ## [0.2.0] - 2026-10-04
 
 A measurement-correctness release. The benchmark numbers were regenerated with the
