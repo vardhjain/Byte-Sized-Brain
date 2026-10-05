@@ -13,7 +13,6 @@ semantic versioning.
   between clicks and shows readable model names.
 - CI now runs the ONNX round trip, memory probe and hosted-demo tests, which were
   previously skipped there.
-
 - Running a stage out of order, a bad option or a bad config now ends with a one-line
   message and exit code 1 (for example a hint to run `bsb train` first) instead of a
   traceback.
