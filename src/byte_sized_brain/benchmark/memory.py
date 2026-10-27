@@ -46,7 +46,7 @@ def _reset_linux_peak_rss() -> bool:
     if not sys.platform.startswith("linux"):
         return False
     try:
-        Path("/proc/self/clear_refs").write_text("5\\n", encoding="ascii")
+        Path("/proc/self/clear_refs").write_text("5\n", encoding="ascii")
     except OSError:
         return False
     return True
