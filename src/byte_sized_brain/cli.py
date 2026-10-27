@@ -4,7 +4,7 @@ Usage::
 
     bsb train     <pipeline|all> [--smoke]
     bsb convert   <pipeline|all> [--smoke]
-    bsb benchmark <pipeline|all> [--smoke] [--num-samples N]
+    bsb benchmark <pipeline|all> [--smoke] [--num-samples N] [--repeats N]
     bsb run       <pipeline|all> [--smoke]      # train + convert + benchmark
     bsb convert   cnn_cifar10 --cnn-alternatives   # add 2 opt-in CNN variants
     bsb benchmark cnn_cifar10 --cnn-alternatives   # compare all 4
@@ -46,6 +46,8 @@ def _load(pipeline: str, args: argparse.Namespace) -> PipelineConfig:
         )
     if getattr(args, "num_samples", None) is not None:
         cfg.benchmark.num_samples = args.num_samples  # validated, must be >= 1
+    if getattr(args, "repeats", None) is not None:
+        cfg.benchmark.repeats = args.repeats  # validated, 1..50
     if getattr(args, "cnn_alternatives", False):
         if cfg.name != "cnn_cifar10":
             raise ValueError("--cnn-alternatives applies only to cnn_cifar10")
@@ -180,6 +182,12 @@ def main(argv: list[str] | None = None) -> int:
         if name in {"benchmark", "run"}:
             sp.add_argument(
                 "--num-samples", type=int, default=None, help="override eval sample count"
+            )
+            sp.add_argument(
+                "--repeats",
+                type=int,
+                default=None,
+                help="timing passes per variant (1-50; default: 1)",
             )
 
     sub.add_parser("report", help="aggregate CSVs into docs/report.md + charts")

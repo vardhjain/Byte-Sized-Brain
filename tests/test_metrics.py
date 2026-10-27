@@ -109,9 +109,10 @@ def test_legacy_csv_is_migrated_without_losing_existing_pairs(tmp_path) -> None:
         _row("int8", arch="aarch64", device="Pi", run_id=""),
     ]
     with out.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=RESULT_COLUMNS[:-1])
+        legacy_columns = RESULT_COLUMNS[: RESULT_COLUMNS.index("run_id")]
+        writer = csv.DictWriter(handle, fieldnames=legacy_columns)
         writer.writeheader()
-        writer.writerows({k: r[k] for k in RESULT_COLUMNS[:-1]} for r in historical)
+        writer.writerows({k: r[k] for k in legacy_columns} for r in historical)
     write_results([_row("fp32", arch="aarch64", device="Graviton")], out)
     rows = _read(out)
     assert len(rows) == 3

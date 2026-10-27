@@ -191,6 +191,23 @@ results. Smoke models are barely trained, so their accuracy numbers mean nothing
 bsb run all --smoke
 ```
 
+### Measure variability, not just one timing run
+
+You can opt into repeated passes for a more defensible latency comparison:
+
+```bash
+bsb benchmark ffn_mnist --repeats 5
+bsb benchmark cnn_cifar10 --cnn-alternatives --repeats 5
+bsb report
+```
+
+All passes use the same held-out examples; the detailed report adds mean-latency
+pass-to-pass variation and a 95% bootstrap interval. It also reports a paired
+accuracy-difference interval and exact McNemar test from the same examples
+used by FP32 and quantized variants. Those statistics are **not** available
+for older CSVs, and a single timing pass does not imply a latency uncertainty
+interval. See [methodology](docs/methodology.md#sample-sizes-and-noise).
+
 To compare the two versions of a model on a movie review, build it and run the demo.
 
 ```bash

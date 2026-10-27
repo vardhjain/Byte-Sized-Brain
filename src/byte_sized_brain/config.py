@@ -67,6 +67,8 @@ class ConvertConfig(_Base):
 class BenchmarkConfig(_Base):
     num_samples: int = Field(default=1000, ge=1)
     warmup: int = Field(default=5, ge=0)
+    # Extra timed passes are opt-in so normal runs keep the same cost.
+    repeats: int = Field(default=1, ge=1, le=50)
 
 
 class PipelineConfig(_Base):

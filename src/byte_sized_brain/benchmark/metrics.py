@@ -46,11 +46,26 @@ RESULT_COLUMNS = [
     "emulated",
     "lib_versions",
     "run_id",
+    "latency_passes",
+    "latency_pass_std_ms",
+    "latency_ms_ci95_low",
+    "latency_ms_ci95_high",
+    "accuracy_delta_ci95_low",
+    "accuracy_delta_ci95_high",
+    "mcnemar_pvalue",
+    "fp32_only_correct",
+    "variant_only_correct",
 ]
 
 
 def utc_timestamp() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
+
+
+def _optional_float(metrics: dict[str, Any], key: str, decimals: int) -> float | str:
+    """Leave unmeasured statistics blank, rather than inventing precision."""
+    value = metrics.get(key, "")
+    return round(float(value), decimals) if value != "" and value is not None else ""
 
 
 def build_row(
@@ -68,6 +83,19 @@ def build_row(
     row: dict[str, Any] = {
         "timestamp": timestamp or utc_timestamp(),
         "run_id": run_id or uuid4().hex,
+        "latency_passes": int(metrics["latency_passes"]) if "latency_passes" in metrics else "",
+        "latency_pass_std_ms": _optional_float(metrics, "latency_pass_std_ms", 4),
+        "latency_ms_ci95_low": _optional_float(metrics, "latency_ms_ci95_low", 4),
+        "latency_ms_ci95_high": _optional_float(metrics, "latency_ms_ci95_high", 4),
+        "accuracy_delta_ci95_low": _optional_float(metrics, "accuracy_delta_ci95_low", 4),
+        "accuracy_delta_ci95_high": _optional_float(metrics, "accuracy_delta_ci95_high", 4),
+        "mcnemar_pvalue": float(metrics["mcnemar_pvalue"]) if "mcnemar_pvalue" in metrics else "",
+        "fp32_only_correct": int(metrics["fp32_only_correct"])
+        if "fp32_only_correct" in metrics
+        else "",
+        "variant_only_correct": int(metrics["variant_only_correct"])
+        if "variant_only_correct" in metrics
+        else "",
         "pipeline": cfg.name,
         "modality": cfg.modality,
         "framework": cfg.framework,

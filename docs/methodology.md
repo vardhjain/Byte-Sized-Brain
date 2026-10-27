@@ -14,7 +14,10 @@ records the same metrics in the same way for TFLite and ONNX Runtime.
 | **Size (MB)** | On-disk size of the `.tflite` or `.onnx` file that is benchmarked, in MiB (1,048,576 bytes). |
 | **Accuracy** | Top-1 accuracy (argmax, or a 0.5 threshold for the LSTM) over `num_samples` test examples. Both variants of a model see exactly the same examples. |
 | **Agreement** | Share of those examples where the variant predicts the same label as its FP32 baseline. |
-| **Latency mean / p50 / p95 (ms)** | Wall-clock time of one model call on a single example. p95 shows tail behaviour the mean hides. |
+| **Latency mean / p50 / p95 (ms)** | Wall-clock time of one model call on a single example, pooled across timed passes. p95 shows tail behaviour the mean hides. |
+| **Latency uncertainty** | Optional full-pass repeats; bootstrap interval and standard deviation are calculated from mean latency **per pass**, not treating each call as an independent machine benchmark. Blank when only one pass is run. |
+| **Paired accuracy delta** | Seeded paired bootstrap 95% interval for quantized accuracy minus FP32 accuracy, resampling matching held-out examples. |
+| **McNemar exact p-value** | Two-sided exact test from samples where exactly one variant is correct; also records how many examples each variant alone gets right. |
 | **RSS delta (MB)** | How much the resident memory of a fresh process grows when it loads the model and runs it. |
 | **Peak RSS (MB)** | The highest resident memory reached *after the runtime-import baseline*, minus that baseline. On Linux, the kernel high-water mark is reset first; a 5 ms RSS sampler is the fallback. |
 
@@ -70,21 +73,40 @@ Neoverse-N2.
 
 ### Sample sizes and noise
 
-Accuracy is measured on the first 1,000 test images for MNIST and CIFAR-10, the first
-500 test reviews for the LSTM, and a seeded random 500 for DistilBERT. With 1,000
-samples the 95 percent interval on an accuracy near 85 percent is about plus or minus
-2 points, and with 500 samples about plus or minus 3. Differences smaller than that
-between a model and its quantized version are not meaningful. The CNN's 17-point drop is
-far outside this range.
+Accuracy uses the first 1,000 test images for MNIST and CIFAR-10, the first
+500 test reviews for the LSTM, and a seeded random 500 for DistilBERT. The
+published October 2026 CSV rows record per-model Wilson intervals, which describe
+sampling variability of each accuracy **separately**. They are not a valid test
+of differences between FP32 and INT8: both variants predict on exactly the same
+examples, so their errors are correlated.
 
-Equal accuracy can still hide changed predictions, which is why each row also records
-`agreement`. The FP32 and INT8 DistilBERT models agree on 477 of the 500 reviews, and
-the 23 disagreements go in both directions. `docs/report.md` lists the agreement and the
-95 percent interval for every variant.
+**New benchmark runs** additionally report a paired bootstrap interval for the
+*accuracy difference*, and an exact two-sided McNemar p-value from discordant
+correctness (FP32-only correct versus quantized-only correct). The paired bootstrap
+uses 2,000 resamples and the configured random seed. Do not treat the p-value as
+a claim about other datasets, separately trained models or deployment hardware.
+Both variants can have the same overall accuracy while predicting differently;
+`agreement` reports the fraction of identical predicted labels. Historical CSVs
+do not have paired prediction statistics; those fields remain blank until rerun.
 
-Latency comes from one run on a laptop. Run-to-run differences of 10 to 20 percent are
-normal, and sub-millisecond figures are close to the resolution of the timer, so read
-the speed column as "faster", "slower" or "about the same", not to the last digit.
+The published latency figures are one pass on a laptop, with typical run-to-run
+variation of 10–20 percent. The new opt-in timing repeat option runs the exact same
+examples and warm-up per pass, recording per-call mean/p50/p95 across all passes.
+A seeded 2,000-resample bootstrap interval and sample SD of **per-pass mean
+latency** are available for two or more passes, not for a single pass.
+Resampling passes (rather than individual calls) avoids claiming neighboring
+inferences are independent timing experiments. These intervals describe variation
+during this benchmark session, *not* across machines or thermal states.
+
+```bash
+bsb benchmark cnn_cifar10 --cnn-alternatives --repeats 5
+bsb report
+```
+
+For a quick alternative, use `bsb benchmark ffn_mnist --repeats 5`.
+Repeats are intentionally opt-in (`benchmark.repeats: 1` by default) so normal
+CI and smoke runs are not slowed down. Values in previously published CSVs and
+the README headline have **not** been backfilled with synthetic statistics.
 
 ## 2. Quantization technique per pipeline
 

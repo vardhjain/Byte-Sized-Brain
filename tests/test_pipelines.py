@@ -87,3 +87,33 @@ def test_missing_artifact_names_the_command_that_builds_it(
     missing = [Variant("fp32", "none", "tflite", paths.tflite("fp32"))]
     with pytest.raises(FileNotFoundError, match=re.escape(command)):
         benchmark_variants(cfg, paths, missing, [0], [0], decision_fn=int)
+
+
+def test_benchmark_repeats_keep_predictions_paired_and_publish_uncertainty(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setattr(base, "TFLiteRunner", _EchoRunner)
+    monkeypatch.setattr(
+        base,
+        "measure_memory",
+        lambda *a, **k: {"rss_delta_mb": 1.0, "peak_rss_mb": 2.0},
+    )
+    cfg = load_config("ffn_mnist")
+    cfg.benchmark.num_samples = 4
+    cfg.benchmark.warmup = 0
+    cfg.benchmark.repeats = 3
+    paths = Paths("ffn_mnist", root=tmp_path)
+    variants = get_pipeline("ffn_mnist").variants(cfg, paths)
+    for variant in variants:
+        variant.path.write_bytes(b"\0" * 1024)
+
+    rows = benchmark_variants(cfg, paths, variants, [0, 1, 2, 3], [0, 1, 9, 9], decision_fn=int)
+    assert len(rows) == 2
+    assert {r["latency_passes"] for r in rows} == {3}
+    assert len({r["run_id"] for r in rows}) == 1
+    assert all(r["latency_ms_ci95_low"] != "" for r in rows)
+    assert all(r["latency_ms_ci95_high"] != "" for r in rows)
+    assert all(r["latency_pass_std_ms"] != "" for r in rows)
+    assert all(r["mcnemar_pvalue"] == 1.0 for r in rows)
+    assert all(r["accuracy_delta_ci95_low"] == 0.0 for r in rows)
+    assert all(r["accuracy_delta_ci95_high"] == 0.0 for r in rows)

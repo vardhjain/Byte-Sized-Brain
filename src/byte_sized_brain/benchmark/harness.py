@@ -34,6 +34,7 @@ def benchmark_inference(
     warmup: int = 5,
     decision_fn: Callable[[Any], int],
     prepare_fn: Callable[[Any], Any] | None = None,
+    include_latencies: bool = False,
 ) -> dict[str, Any]:
     n = min(num_samples, len(samples), len(labels))
     if n <= 0:
@@ -58,7 +59,7 @@ def benchmark_inference(
         predictions.append(decision_fn(out))
 
     correct = sum(p == int(labels[i]) for i, p in enumerate(predictions))
-    return {
+    result: dict[str, Any] = {
         "accuracy": correct / n,
         "predictions": predictions,
         "latency_ms_mean": float(latencies.mean()),
@@ -66,3 +67,6 @@ def benchmark_inference(
         "latency_ms_p95": float(np.percentile(latencies, 95)),
         "num_samples": n,
     }
+    if include_latencies:
+        result["latencies_ms"] = latencies
+    return result
