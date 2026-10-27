@@ -176,9 +176,7 @@ def cmd_recommend(args: argparse.Namespace) -> int:
             f"Measured experiment: {outcome['pipeline']} on {outcome['arch']} "
             f"({outcome['device']}) | run_id={outcome['run_id']}"
         )
-        print(
-            f"Objective: minimize/maximize {args.objective} | latency: {args.latency_kind}"
-        )
+        print(f"Objective: minimize/maximize {args.objective} | latency: {args.latency_kind}")
         for choice in outcome["candidates"]:
             label = "FEASIBLE" if choice["feasible"] else "REJECTED"
             reason = "; ".join(choice["reasons"])
@@ -187,8 +185,7 @@ def cmd_recommend(args: argparse.Namespace) -> int:
                 f"acc={choice['accuracy']} size={choice['size_mb']} MiB "
                 f"mean={choice['latency_mean_ms']}ms "
                 f"p95={choice['latency_p95_ms']}ms "
-                f"RSS={choice['memory_mb']}MiB"
-                + (f" | {reason}" if reason else "")
+                f"RSS={choice['memory_mb']}MiB" + (f" | {reason}" if reason else "")
             )
         if outcome["recommended_variant"]:
             print(f"Recommendation: {outcome['recommended_variant']}")
@@ -265,9 +262,7 @@ def main(argv: list[str] | None = None) -> int:
     recommend.add_argument("--max-latency-ms", type=float, default=None)
     recommend.add_argument("--max-p95-ms", type=float, default=None)
     recommend.add_argument("--max-memory-mb", type=float, default=None)
-    recommend.add_argument(
-        "--latency-kind", choices=["model", "prepared-input"], default="model"
-    )
+    recommend.add_argument("--latency-kind", choices=["model", "prepared-input"], default="model")
     recommend.add_argument(
         "--objective", choices=["latency", "size", "memory", "accuracy"], default="latency"
     )
