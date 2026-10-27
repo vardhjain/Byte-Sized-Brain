@@ -194,3 +194,37 @@ def test_cross_hardware_verifier_runs_without_installed_dependencies(tmp_path: P
     failed = subprocess.run(command, capture_output=True, text=True, check=False)
     assert failed.returncode != 0
     assert "Model bytes differ" in failed.stderr
+
+
+def test_archived_real_mnist_hardware_run_has_matching_digests() -> None:
+    """The archived October 27 experiment is a durable, executable test fixture."""
+    root = (
+        Path(__file__).resolve().parents[1]
+        / "benchmarks"
+        / "results"
+        / "cross_hardware"
+        / "2026-10-27-ffn-mnist"
+    )
+    rows = compare_results(root / "x86", root / "arm")
+    assert {row["variant"] for row in rows} == {"fp32", "int8"}
+    assert all(row["samples"] == 1000 for row in rows)
+    accuracy = {row["variant"]: row["x86_accuracy"] for row in rows}
+    assert accuracy == {"fp32": 0.970, "int8": 0.971}
+    assert all(row["x86_accuracy"] == row["arm64_accuracy"] for row in rows)
+    assert {row["variant"]: row["sha256"][:12] for row in rows} == {
+        "fp32": "8d45a4fcf620",
+        "int8": "97b9ede664c2",
+    }
+
+    # The hidden cost of INT8 input preparation reverses the model-only
+    # speedup on both native runner CPUs; preserve the underlying evidence.
+    for arch in ("x86", "arm"):
+        with (root / arch / "ffn_mnist.csv").open(encoding="utf-8", newline="") as handle:
+            variants = {row["variant"]: row for row in csv.DictReader(handle)}
+        assert float(variants["int8"]["latency_ms_mean"]) < float(
+            variants["fp32"]["latency_ms_mean"]
+        )
+        assert float(variants["int8"]["e2e_latency_ms_mean"]) > float(
+            variants["fp32"]["e2e_latency_ms_mean"]
+        )
+        assert variants["int8"]["latency_passes"] == "3"
