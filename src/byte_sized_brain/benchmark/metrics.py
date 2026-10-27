@@ -56,6 +56,15 @@ RESULT_COLUMNS = [
     "fp32_only_correct",
     "variant_only_correct",
     "model_sha256",
+    "input_prep_latency_ms_mean",
+    "input_prep_latency_ms_p50",
+    "input_prep_latency_ms_p95",
+    "e2e_latency_ms_mean",
+    "e2e_latency_ms_p50",
+    "e2e_latency_ms_p95",
+    "e2e_latency_pass_std_ms",
+    "e2e_latency_ms_ci95_low",
+    "e2e_latency_ms_ci95_high",
 ]
 
 
@@ -98,6 +107,15 @@ def build_row(
         if "variant_only_correct" in metrics
         else "",
         "model_sha256": metrics.get("model_sha256", ""),
+        "input_prep_latency_ms_mean": _optional_float(metrics, "input_prep_latency_ms_mean", 4),
+        "input_prep_latency_ms_p50": _optional_float(metrics, "input_prep_latency_ms_p50", 4),
+        "input_prep_latency_ms_p95": _optional_float(metrics, "input_prep_latency_ms_p95", 4),
+        "e2e_latency_ms_mean": _optional_float(metrics, "e2e_latency_ms_mean", 4),
+        "e2e_latency_ms_p50": _optional_float(metrics, "e2e_latency_ms_p50", 4),
+        "e2e_latency_ms_p95": _optional_float(metrics, "e2e_latency_ms_p95", 4),
+        "e2e_latency_pass_std_ms": _optional_float(metrics, "e2e_latency_pass_std_ms", 4),
+        "e2e_latency_ms_ci95_low": _optional_float(metrics, "e2e_latency_ms_ci95_low", 4),
+        "e2e_latency_ms_ci95_high": _optional_float(metrics, "e2e_latency_ms_ci95_high", 4),
         "pipeline": cfg.name,
         "modality": cfg.modality,
         "framework": cfg.framework,
