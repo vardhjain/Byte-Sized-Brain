@@ -91,7 +91,9 @@ def build_row(
         "latency_ms_ci95_high": _optional_float(metrics, "latency_ms_ci95_high", 4),
         "accuracy_delta_ci95_low": _optional_float(metrics, "accuracy_delta_ci95_low", 4),
         "accuracy_delta_ci95_high": _optional_float(metrics, "accuracy_delta_ci95_high", 4),
-        "mcnemar_pvalue": _optional_float(metrics, "mcnemar_pvalue", 9),
+        "mcnemar_pvalue": float(metrics["mcnemar_pvalue"])
+        if "mcnemar_pvalue" in metrics
+        else "",
         "fp32_only_correct": int(metrics["fp32_only_correct"])
         if "fp32_only_correct" in metrics
         else "",
