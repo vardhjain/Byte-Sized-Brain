@@ -14,6 +14,7 @@ PAGES = (
     Path("docs/methodology.md"),
     Path("docs/reproducibility.md"),
     Path("docs/recommender.md"),
+    Path("docs/mnist-cross-hardware.md"),
     Path("docs/report.md"),
 )
 MARKDOWN_LINK = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
@@ -72,3 +73,4 @@ def test_mkdocs_exposes_the_reproducibility_guide() -> None:
     config = (ROOT / "mkdocs.yml").read_text(encoding="utf-8")
     assert "Reproduce and verify: reproducibility.md" in config
     assert "Choose a variant: recommender.md" in config
+    assert "Controlled MNIST hardware experiment: mnist-cross-hardware.md" in config
