@@ -80,7 +80,7 @@ jobs:
           - arch: aarch64
             runner: ubuntu-24.04-arm
     env:
-      BSB_RESULTS: ${{ runner.temp }}/results
+      BSB_RESULTS: results-cross-hardware
     steps:
       - uses: actions/checkout@v7
         with:
@@ -113,14 +113,16 @@ jobs:
         run: bsb benchmark "$PIPELINES" --repeats 3
       - name: Include the shared artifact manifest with results
         run: |
-          cp "$RUNNER_TEMP/model-bundle/manifest.json" "$RUNNER_TEMP/results/model-manifest.json"
-          printf "## ${{ matrix.arch }} measurements\n" >> "$GITHUB_STEP_SUMMARY"
-          python -c 'import csv, glob; [(print(f, *(f"{r["variant"]}:{r["model_sha256"][:12]}" for r in csv.DictReader(open(f))))) for f in glob.glob("benchmarks/results/*.csv")]' || true
-          ls -lh "$RUNNER_TEMP/results"
+          cp "$RUNNER_TEMP/model-bundle/manifest.json" "$BSB_RESULTS/model-manifest.json"
+          printf "## ${{ matrix.arch }} measurements\\n" >> "$GITHUB_STEP_SUMMARY"
+          for file in "$BSB_RESULTS"/*.csv; do
+            echo "$file"
+            head -n 3 "$file"
+          done
       - name: Upload architecture-specific results
         uses: actions/upload-artifact@v7
         with:
           name: results-${{ matrix.arch }}
-          path: ${{ runner.temp }}/results/
+          path: results-cross-hardware/
           if-no-files-found: error
           retention-days: 30
