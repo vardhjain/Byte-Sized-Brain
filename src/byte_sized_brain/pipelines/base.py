@@ -14,6 +14,7 @@ import numpy as np
 
 from ..benchmark import OnnxRunner, TFLiteRunner, benchmark_inference, build_row
 from ..benchmark.memory import measure_memory
+from ..benchmark.statistics import paired_accuracy, repeated_latency
 from ..utils import get_logger, size_mb
 
 if TYPE_CHECKING:
@@ -104,22 +105,39 @@ def benchmark_variants(
         runner = runners[v.runtime](v.path)
         # Time only the model call. Input preparation (the float to INT8 quantization
         # of a full-integer model) happens before the clock starts.
-        metrics = benchmark_inference(
-            runner.invoke,
-            samples,
-            labels,
-            num_samples=cfg.benchmark.num_samples,
-            warmup=cfg.benchmark.warmup,
-            decision_fn=decision_fn,
-            prepare_fn=runner.prepare,
-        )
+        pass_latencies: list[np.ndarray] = []
+        metrics: dict[str, Any] = {}
+        predictions: list[int] = []
+        for repeat in range(cfg.benchmark.repeats):
+            measured = benchmark_inference(
+                runner.invoke,
+                samples,
+                labels,
+                num_samples=cfg.benchmark.num_samples,
+                warmup=cfg.benchmark.warmup,
+                decision_fn=decision_fn,
+                prepare_fn=runner.prepare,
+                include_latencies=True,
+            )
+            pass_latencies.append(measured.pop("latencies_ms"))
+            if repeat == 0:
+                metrics = measured
+                predictions = metrics.pop("predictions")
+        metrics.update(repeated_latency(pass_latencies, seed=cfg.seed))
         metrics["threads"] = runner.threads
-        # Share of samples where this variant predicts what the baseline predicts.
-        predictions = metrics.pop("predictions")
+        # All variants are scored against the *same examples*, with FP32 first.
         baseline = predictions if baseline is None else baseline
         metrics["agreement"] = sum(
             a == b for a, b in zip(predictions, baseline, strict=True)
         ) / len(predictions)
+        metrics.update(
+            paired_accuracy(
+                baseline,
+                predictions,
+                labels[: len(predictions)],
+                seed=cfg.seed,
+            )
+        )
         del runner
         # Footprint of this variant alone, measured in a fresh process.
         metrics.update(measure_memory(v.runtime, v.path, samples[0]))
