@@ -79,8 +79,7 @@ def to_int8_except_depthwise(
 
     experimental = tf.lite.experimental
     if not all(
-        hasattr(experimental, name)
-        for name in ("QuantizationDebugOptions", "QuantizationDebugger")
+        hasattr(experimental, name) for name in ("QuantizationDebugOptions", "QuantizationDebugger")
     ):
         raise RuntimeError(
             "Selective depthwise quantization requires TensorFlow's experimental "
