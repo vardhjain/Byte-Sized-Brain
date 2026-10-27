@@ -274,6 +274,24 @@ These are not automatically mixed into the historical results: the earlier
 ARM64 measurements used separately trained models. See the
 [methodology](docs/methodology.md#3-running-on-arm64) for limitations.
 
+### Controlled MNIST results: input preparation changes the answer
+
+A new native x86/ARM64 MNIST comparison uses **the exact same FP32 and INT8
+model bytes on both CPUs**, verified by SHA-256. INT8 made the model call
+**2.07× faster on x86** and **2.53× faster on ARM64**, but float-to-INT8 input
+preparation made the total `prepare() + invoke()` path **55% slower** on x86
+and **24% slower** on ARM64. Both variants retained about 97% accuracy on
+1,000 held-out digits.
+
+[Read the controlled hardware case study](docs/mnist-cross-hardware.md) or
+[inspect the archived CSVs and manifests](benchmarks/results/cross_hardware/2026-10-27-ffn-mnist/).
+The first Actions run's final comparison **job** failed because its
+no-dependency Python environment could not import NumPy; both benchmark
+jobs succeeded and the archive was independently checksum-verified. A
+standard-library-only verification fix and regression test are included
+with this snapshot. These *new* MNIST measurements are kept separate
+from the original, independently trained four-model headline results.
+
 ### Model-only latency versus input preparation
 
 Every new benchmark now records **both** the existing model-only inference

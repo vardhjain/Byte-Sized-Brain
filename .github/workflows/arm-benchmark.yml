@@ -139,8 +139,9 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
-      - name: Install local package without ML dependencies
-        run: pip install --no-deps -e .
+      # The verifier uses only Python's standard library. Running the source
+      # file directly avoids importing benchmark/__init__.py (which needs NumPy)
+      # and avoids reinstalling any ML or package dependencies.
       - uses: actions/download-artifact@v8
         with:
           name: results-x86_64
@@ -150,4 +151,6 @@ jobs:
           name: results-aarch64
           path: paired-results/arm
       - name: Assert byte-identical model files and equal evaluation sample counts
-        run: python -m byte_sized_brain.benchmark.cross_hardware paired-results/x86 paired-results/arm
+        run: >-
+          python -I -S src/byte_sized_brain/benchmark/cross_hardware.py
+          paired-results/x86 paired-results/arm

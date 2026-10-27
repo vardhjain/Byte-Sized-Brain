@@ -29,6 +29,7 @@ nav:
   - Home: index.md
   - Methodology: methodology.md
   - Reproduce and verify: reproducibility.md
+  - Controlled MNIST hardware experiment: mnist-cross-hardware.md
   - Choose a variant: recommender.md
   - Results: report.md
 

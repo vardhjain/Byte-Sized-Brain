@@ -42,4 +42,5 @@ benchmark commands.
 - Config files, fixed seeds, pinned dependencies, paired accuracy statistics,
   repeatable latency passes, and CI on x86 and native ARM64.
 - An opt-in workflow for measuring **identical** SHA-256 verified artifacts on both
-  CPU architectures. It has not yet replaced the historical benchmark numbers.
+  CPU architectures, with a separate [MNIST x86/ARM64 case study](mnist-cross-hardware.md)
+  and machine-readable evidence. It does not replace the historical headline numbers.
