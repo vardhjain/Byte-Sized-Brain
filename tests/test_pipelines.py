@@ -66,6 +66,8 @@ def test_benchmark_variants_produces_one_scored_row_per_variant(
     rows = benchmark_variants(cfg, paths, variants, [0, 1, 2, 3], [0, 1, 9, 9], decision_fn=int)
 
     assert [r["variant"] for r in rows] == ["fp32", "int8"]
+    assert len({r["run_id"] for r in rows}) == 1
+    assert rows[0]["run_id"]  # non-empty and shared by both model variants
     assert [r["accuracy"] for r in rows] == [0.5, 0.5]
     assert [r["size_mb"] for r in rows] == [round(4096 / 1024**2, 4), round(1024 / 1024**2, 4)]
     assert all(r["num_samples"] == 4 for r in rows)
