@@ -1,9 +1,8 @@
 """Aggregate ``benchmarks/results/*.csv`` into a chart dashboard + ``docs/report.md``
 and inject a results table + chart into the README.
 
-Computes, per (pipeline, arch, emulated), the quantization trade-off relative to
-that pipeline's FP32 baseline, meaning the size reduction, latency speedup and
-accuracy delta. Emulated-ARM rows are kept separate from native rows so the story
+Computes trade-offs against the FP32 baseline from the *same benchmark run*,
+using run_id to avoid mixing results from different devices or experiments. Emulated-ARM rows are kept separate from native rows so the story
 stays honest. Only the top-level ``*.csv`` files are read, so smoke results (kept
 in ``benchmarks/results/smoke/``) never leak into the report.
 """
@@ -14,6 +13,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from .benchmark.metrics import effective_run_id
 from .config import results_root
 from .utils import get_logger, normalize_arch
 
@@ -52,6 +52,20 @@ _METHOD = {
 }
 
 
+def _with_run_ids(df: pd.DataFrame) -> pd.DataFrame:
+    """Make both new and historical result frames safe to pair by run ID."""
+    if df.empty:
+        return df
+    if (
+        "run_id" not in df.columns
+        or df["run_id"].isna().any()
+        or (df["run_id"].astype(str).str.strip() == "").any()
+    ):
+        df = df.copy()
+        df["run_id"] = df.apply(lambda row: effective_run_id(row.to_dict()), axis=1)
+    return df
+
+
 def load_results(results_dir: Path | None = None) -> pd.DataFrame:
     results_dir = results_dir or results_root()
     csvs = sorted(p for p in results_dir.glob("*.csv"))
@@ -61,12 +75,38 @@ def load_results(results_dir: Path | None = None) -> pd.DataFrame:
     # Older rows say AMD64 (Windows) where newer ones say x86_64 (Linux); same ISA.
     df["arch"] = df["arch"].map(normalize_arch)
     df["emulated"] = df["emulated"].astype(str).str.strip().str.lower().isin({"true", "1"})
-    return df
+    return _with_run_ids(df)
 
 
-def _baseline_map(df: pd.DataFrame) -> dict[tuple, pd.Series]:
+def _baseline_map(df: pd.DataFrame) -> dict[tuple[str, str], pd.Series]:
     base = df[df["variant"] == "fp32"]
-    return {(r["pipeline"], r["arch"], r["emulated"]): r for _, r in base.iterrows()}
+    return {(str(r["pipeline"]), str(r["run_id"])): r for _, r in base.iterrows()}
+
+
+def _featured_pairs(df: pd.DataFrame, arch: str) -> list[tuple[str, pd.Series, pd.Series]]:
+    """Choose the newest complete, native benchmark run for each pipeline.
+
+    A newer FP32-only or INT8-only run is ignored rather than being paired with
+    another experiment. Sorting by the recorded timestamps keeps selection
+    deterministic regardless of CSV insertion order.
+    """
+    native = _with_run_ids(df)
+    native = native[(native["arch"] == arch) & (~native["emulated"].astype(bool))]
+    present = set(native["pipeline"])
+    order = [p for p in _ORDER if p in present] + sorted(present - set(_ORDER))
+    pairs: list[tuple[str, pd.Series, pd.Series]] = []
+    for p in order:
+        candidates = []
+        for run_id, sub in native[native["pipeline"] == p].groupby("run_id", sort=False):
+            fp, q = sub[sub["variant"] == "fp32"], sub[sub["variant"] != "fp32"]
+            if fp.empty or q.empty:
+                continue
+            latest = max(sub["timestamp"].astype(str)) if "timestamp" in sub else ""
+            candidates.append((latest, str(run_id), fp.iloc[-1], q.iloc[-1]))
+        if candidates:
+            _, _, fp, q = max(candidates, key=lambda candidate: candidate[:2])
+            pairs.append((str(p), fp, q))
+    return pairs
 
 
 def wilson_halfwidth(accuracy: float, n: int, z: float = 1.96) -> float:
@@ -79,8 +119,9 @@ def wilson_halfwidth(accuracy: float, n: int, z: float = 1.96) -> float:
 
 
 def headline_arch(df: pd.DataFrame) -> str:
-    """The architecture the README table shows: the one with the most rows, x86_64 on a tie."""
-    counts = df["arch"].value_counts()
+    """Featured architecture: most distinct pipelines, x86_64 on a tie."""
+    # Repeating the same machine must not bias the featured architecture.
+    counts = df.groupby("arch")["pipeline"].nunique()
     top = sorted(counts[counts == counts.max()].index)
     return "x86_64" if "x86_64" in top else top[0]
 
@@ -88,10 +129,11 @@ def headline_arch(df: pd.DataFrame) -> str:
 def summarize(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
+    df = _with_run_ids(df)
     baselines = _baseline_map(df)
     rows = []
     for _, r in df.iterrows():
-        b = baselines.get((r["pipeline"], r["arch"], r["emulated"]))
+        b = baselines.get((str(r["pipeline"]), str(r["run_id"])))
         size_red = lat_speedup = acc_delta = float("nan")
         if b is not None and b["size_mb"]:
             size_red = 100.0 * (b["size_mb"] - r["size_mb"]) / b["size_mb"]
@@ -101,6 +143,8 @@ def summarize(df: pd.DataFrame) -> pd.DataFrame:
         rows.append(
             {
                 "pipeline": r["pipeline"],
+                "run_id": r["run_id"],
+                "device": r.get("device", ""),
                 "modality": r["modality"],
                 "runtime": r["runtime"],
                 "variant": r["variant"],
@@ -162,9 +206,6 @@ def _readme_table(df: pd.DataFrame, arch: str) -> str:
 
     The identifier-heavy per-variant table stays in docs/report.md for specialists.
     """
-    native = df[(df["arch"] == arch) & (~df["emulated"].astype(bool))]
-    present = set(native["pipeline"])
-    order = [p for p in _ORDER if p in present] + sorted(present - set(_ORDER))
     header = [
         "Model (dataset)",
         "Method",
@@ -174,12 +215,7 @@ def _readme_table(df: pd.DataFrame, arch: str) -> str:
         "Memory",
     ]
     lines = ["| " + " | ".join(header) + " |", "| " + " | ".join("---" for _ in header) + " |"]
-    for p in order:
-        sub = native[native["pipeline"] == p]
-        fp, q = sub[sub["variant"] == "fp32"], sub[sub["variant"] != "fp32"]
-        if fp.empty or q.empty:
-            continue
-        fp, q = fp.iloc[0], q.iloc[0]
+    for p, fp, q in _featured_pairs(df, arch):
         smaller = 100.0 * (fp["size_mb"] - q["size_mb"]) / fp["size_mb"] if fp["size_mb"] else 0.0
         pts = 100.0 * (q["accuracy"] - fp["accuracy"])
         change = "no change" if abs(pts) < 0.05 else f"{pts:+.1f} pts"
@@ -222,16 +258,8 @@ def inject_readme_table(
 
 def _paired(df: pd.DataFrame, arch: str) -> pd.DataFrame:
     """One row per pipeline pairing the FP32 baseline with its quantized variant."""
-    d = df[df["arch"] == arch]
-    present = set(d["pipeline"])
     rows = []
-    for p in [x for x in _ORDER if x in present] + [x for x in present if x not in _ORDER]:
-        sub = d[d["pipeline"] == p]
-        fp = sub[sub["variant"] == "fp32"]
-        q = sub[sub["variant"] != "fp32"]
-        if fp.empty or q.empty:
-            continue
-        fp, q = fp.iloc[0], q.iloc[0]
+    for p, fp, q in _featured_pairs(df, arch):
         rows.append(
             {
                 "label": _LABELS.get(p, p),
@@ -335,8 +363,8 @@ def generate_report(results_dir: Path | None = None) -> Path | None:
     summary = summarize(df)
     native = df[~df["emulated"].astype(bool)]
     headline = native if not native.empty else df
-    # Most-benchmarked native architecture. A tie goes to x86_64, so adding ARM rows
-    # for the same pipelines never silently flips the README headline.
+    # Feature the architecture with the most distinct pipelines, breaking ties
+    # toward x86_64. Additional reruns must not flip the README headline.
     primary_arch = headline_arch(headline)
 
     chart_ok = False
@@ -370,8 +398,8 @@ def generate_report(results_dir: Path | None = None) -> Path | None:
         "accuracy at that sample size, so a difference smaller than it is within noise. "
         "`agreement` is the share of test examples where the variant gives the same "
         "answer as its FP32 baseline.",
-        "- All three are computed against each pipeline's own FP32 baseline, within the "
-        "same architecture. Sizes are in MiB (1,048,576 bytes) and latency is the mean "
+        "- All three are computed against the FP32 baseline within the exact same run_id, "
+        "never just the same architecture. Sizes are in MiB (1,048,576 bytes) and latency is the mean "
         "time for one input, in milliseconds.",
         "- Rows with `emulated = True` come from QEMU-emulated ARM64. Their **absolute "
         "latency is not comparable** to native runs, so treat it as a relative ratio only "

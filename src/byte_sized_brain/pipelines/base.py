@@ -8,6 +8,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from uuid import uuid4
 
 import numpy as np
 
@@ -92,6 +93,7 @@ def benchmark_variants(
         "onnxruntime": OnnxRunner,
     }
     rows: list[dict[str, Any]] = []
+    run_id = uuid4().hex  # the FP32 and quantized variants belong to the same benchmark
     baseline: list[int] | None = None  # predictions of the first (FP32) variant
     for v in variants:
         if not Path(v.path).exists():
@@ -130,6 +132,7 @@ def benchmark_variants(
                 runtime=v.runtime,
                 size_mb=mb,
                 metrics=metrics,
+                run_id=run_id,
             )
         )
         log.info(

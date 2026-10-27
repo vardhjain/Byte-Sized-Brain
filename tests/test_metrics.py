@@ -1,4 +1,4 @@
-"""Result-row schema, CSV round-trip, and merge-by-architecture semantics."""
+"""Result-row schema, legacy migration, and merge-by-run semantics."""
 
 from __future__ import annotations
 
@@ -62,13 +62,62 @@ def test_csv_round_trip(tmp_path) -> None:
     assert rows[0]["pipeline"] == "ffn_mnist"
 
 
-def test_rerun_on_the_same_arch_replaces_its_rows(tmp_path) -> None:
+def test_repeating_same_arch_keeps_distinct_runs(tmp_path) -> None:
     out = tmp_path / "r.csv"
     write_results([_row("fp32", arch="x86_64"), _row("int8", arch="x86_64")], out)
     write_results([_row("fp32", arch="x86_64", accuracy=0.5)], out)
     rows = _read(out)
-    # The whole (pipeline, arch, emulated) group is replaced, stale variants included.
-    assert [(r["variant"], r["accuracy"]) for r in rows] == [("fp32", "0.5")]
+    assert len(rows) == 3
+    assert len({r["run_id"] for r in rows}) == 3
+
+
+def test_reusing_explicit_run_id_replaces_only_that_run(tmp_path) -> None:
+    out = tmp_path / "r.csv"
+    write_results(
+        [_row("fp32", run_id="experiment-one"), _row("int8", run_id="experiment-one")],
+        out,
+    )
+    write_results([_row("fp32", run_id="experiment-two")], out)
+    write_results([_row("fp32", run_id="experiment-one", accuracy=0.5)], out)
+    rows = _read(out)
+    assert {(r["run_id"], r["variant"], r["accuracy"]) for r in rows} == {
+        ("experiment-one", "fp32", "0.5"),
+        ("experiment-two", "fp32", "0.9123"),
+    }
+
+
+def test_devices_sharing_architecture_keep_both_runs(tmp_path) -> None:
+    out = tmp_path / "r.csv"
+    for device in ("Raspberry Pi", "AWS Graviton"):
+        write_results(
+            [
+                _row("fp32", arch="aarch64", device=device, run_id=f"{device}-run"),
+                _row("int8", arch="aarch64", device=device, run_id=f"{device}-run"),
+            ],
+            out,
+        )
+    rows = _read(out)
+    assert len(rows) == 4
+    assert {r["device"] for r in rows} == {"Raspberry Pi", "AWS Graviton"}
+    assert len({r["run_id"] for r in rows}) == 2
+
+
+def test_legacy_csv_is_migrated_without_losing_existing_pairs(tmp_path) -> None:
+    out = tmp_path / "r.csv"
+    historical = [
+        _row("fp32", arch="aarch64", device="Pi", run_id=""),
+        _row("int8", arch="aarch64", device="Pi", run_id=""),
+    ]
+    with out.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=RESULT_COLUMNS[:-1])
+        writer.writeheader()
+        writer.writerows({k: r[k] for k in RESULT_COLUMNS[:-1]} for r in historical)
+    write_results([_row("fp32", arch="aarch64", device="Graviton")], out)
+    rows = _read(out)
+    assert len(rows) == 3
+    assert rows[0]["run_id"] == rows[1]["run_id"]
+    assert rows[0]["run_id"].startswith("legacy-")
+    assert rows[2]["run_id"] != rows[0]["run_id"]
 
 
 def test_other_architectures_survive_a_rerun(tmp_path) -> None:
@@ -86,8 +135,8 @@ def test_other_architectures_survive_a_rerun(tmp_path) -> None:
     ]
 
 
-def test_windows_and_linux_spellings_count_as_one_arch(tmp_path) -> None:
+def test_windows_and_linux_architecture_aliases_keep_distinct_runs(tmp_path) -> None:
     out = tmp_path / "r.csv"
-    write_results([_row("fp32", arch="AMD64")], out)  # a row written on Windows
-    write_results([_row("fp32", arch="x86_64")], out)  # the same ISA, written on Linux
-    assert len(_read(out)) == 1
+    write_results([_row("fp32", arch="AMD64", device="Windows laptop")], out)
+    write_results([_row("fp32", arch="x86_64", device="Linux server")], out)
+    assert len(_read(out)) == 2  # same ISA is not the same experiment

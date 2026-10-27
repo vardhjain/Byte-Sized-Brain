@@ -19,8 +19,12 @@ records the same metrics in the same way for TFLite and ONNX Runtime.
 | **Peak RSS (MB)** | The highest resident memory reached *after the runtime-import baseline*, minus that baseline. On Linux, the kernel high-water mark is reset first; a 5 ms RSS sampler is the fallback. |
 
 Every row is **self-describing**. It is stamped with `device` (the CPU model, or the
-`BSB_DEVICE` label), `arch`, `os`, `python`, `emulated` and the exact library versions,
-so results from different machines can share one CSV and still be told apart.
+`BSB_DEVICE` label), `arch`, `os`, `python`, `emulated` and the exact library versions.
+A new benchmark invocation creates one `run_id` shared by the FP32 and quantized rows.
+This identifies a paired experiment regardless of architecture, so different devices
+and repeated runs on the same device remain separate. Older committed rows (October
+2026) lack this field: the reader assigns stable `legacy-*` IDs using their
+pipeline/device/environment fields. Runs overwritten by older versions cannot be recovered.
 Architecture names are normalized, so Windows `AMD64` and Linux `x86_64` count as the
 same architecture.
 
@@ -157,9 +161,11 @@ BSB_DEVICE=oracle-ampere-a1 bsb run all     # BSB_EMULATED is unset, so rows say
 On a Raspberry Pi, train and convert on a faster machine, copy the `artifacts/` folder
 across, and run only `bsb benchmark <pipeline>` on the Pi.
 
-`bsb benchmark` merges rows by architecture, so ARM rows are added next to the x86 rows
-in each `benchmarks/results/<pipeline>.csv` instead of replacing them, and `bsb report`
-compares each row only with the FP32 baseline from the same architecture.
+`bsb benchmark` appends a new pair of result rows identified by one run ID. Neither
+other architectures nor earlier runs on the same architecture are overwritten.
+`bsb report` compares a quantized row only to FP32 from the **same run ID** and
+selects the latest complete native pair per pipeline for the README and dashboard.
+A newer incomplete pair is skipped. The full history remains in the CSV and detailed report.
 
 ## 4. Reproducibility
 

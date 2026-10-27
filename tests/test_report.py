@@ -117,3 +117,53 @@ def test_readme_table_is_plain_language_one_row_per_model() -> None:
     assert "4.00 → 1.00 MB (75% smaller)" in table
     assert "90.0% → 88.0% (-2.0 pts)" in table
     assert "(2.0× faster)" in table and "(1.5× slower)" in table
+
+
+def test_run_id_blocks_cross_device_baseline_pairing() -> None:
+    """Identical architectures can still refer to unrelated experiments."""
+    first = _rows(latency=10.0)
+    second = _rows(latency=100.0)
+    for r in first:
+        r.update(run_id="pi-run", device="Raspberry Pi", timestamp="2026-10-01T10:00:00Z")
+    for r in second:
+        r.update(run_id="graviton-run", device="Graviton", timestamp="2026-10-02T10:00:00Z")
+    # Deliberately interleave FP32/INT8 rows from different devices.
+    df = pd.DataFrame([first[0], second[0], first[1], second[1]])
+    summary = summarize(df)
+    assert list(summary[summary["variant"] == "int8"]["latency_speedup_x"]) == [2.0, 2.0]
+    assert set(summary["run_id"]) == {"pi-run", "graviton-run"}
+
+
+def test_featured_run_uses_latest_complete_pair_and_skips_partial() -> None:
+    from byte_sized_brain.report import _featured_pairs, _readme_table
+
+    old = _rows(latency=10.0)
+    recent = _rows(latency=100.0)
+    partial = _rows(latency=2000.0)[:1]
+    for rows, run_id, stamp in (
+        (old, "old", "2026-10-01"),
+        (recent, "recent", "2026-10-02"),
+        (partial, "partial", "2026-10-03"),
+    ):
+        for r in rows:
+            r.update(run_id=run_id, timestamp=stamp, device=run_id)
+    df = pd.DataFrame([old[0], recent[0], partial[0], old[1], recent[1]])
+    pairs = _featured_pairs(df, "x86_64")
+    assert len(pairs) == 1
+    _, fp32, int8 = pairs[0]
+    assert fp32["run_id"] == int8["run_id"] == "recent"
+    table = _readme_table(df, "x86_64")
+    assert "100.0 → 50.0 ms (2.0× faster)" in table
+    assert "2000" not in table
+
+
+def test_featured_architecture_does_not_depend_on_run_count() -> None:
+    from byte_sized_brain.report import headline_arch
+
+    x86 = _rows(arch="x86_64")
+    arm = _rows(arch="aarch64")
+    reruns = []
+    for i in range(20):
+        for row in arm:
+            reruns.append({**row, "run_id": f"arm-{i}"})
+    assert headline_arch(pd.DataFrame(x86 + arm + reruns)) == "x86_64"
