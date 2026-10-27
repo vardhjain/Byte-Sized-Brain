@@ -45,12 +45,11 @@ def paired_accuracy(
     lost = int(np.count_nonzero(base_ok & ~quant_ok))
     gained = int(np.count_nonzero(~base_ok & quant_ok))
     discordant = lost + gained
-    pvalue = (
-        min(1.0, 2.0 * sum(comb(discordant, k) for k in range(min(lost, gained) + 1))
-            / (1 << discordant))
-        if discordant
-        else 1.0
-    )
+    if discordant:
+        tail = sum(comb(discordant, k) for k in range(min(lost, gained) + 1))
+        pvalue = min(1.0, 2.0 * tail / (1 << discordant))
+    else:
+        pvalue = 1.0
     differences = quant_ok.astype(np.int8) - base_ok.astype(np.int8)
     if not np.any(differences):
         lower = upper = 0.0
