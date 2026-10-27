@@ -121,9 +121,9 @@ jobs:
           pip install -c requirements.txt -e ".[dev]" onnx
           pip install -c requirements.txt -r demo/hf_space/requirements.txt
       - name: ONNX round trip, memory probe and hosted demo
-        run: |
-          pytest tests/test_onnx_roundtrip.py tests/test_memory.py tests/test_hf_space.py -rs | tee out.txt
-          ! grep -q "SKIPPED" out.txt
+        # The helper enables pipefail: tee must not conceal a pytest failure.
+        # It also fails when these required integration tests are skipped.
+        run: bash scripts/ci_pytest.sh tests/test_onnx_roundtrip.py tests/test_memory.py tests/test_hf_space.py
 
   tflite-smoke:
     name: TFLite smoke (${{ matrix.arch }}, Python ${{ matrix.python }})
