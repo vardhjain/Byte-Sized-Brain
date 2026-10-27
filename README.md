@@ -153,8 +153,10 @@ bsb list                          # the four models and how each one is shrunk
 bsb run ffn_mnist                 # train, shrink and measure the digit reader (about a minute)
 ```
 
-`bsb run` rewrites that model's file in `benchmarks/results/` with numbers from your
-machine, and `bsb report` then rebuilds the table above, the chart and `docs/report.md`.
+`bsb run` adds a new run (with its own ID) to that model's CSV in
+`benchmarks/results/`, preserving previous runs, even from the same CPU architecture.
+`bsb report` uses the newest complete native FP32/INT8 pair per pipeline to
+rebuild the table above, the chart and `docs/report.md`.
 
 To check that everything works without waiting for full training, add `--smoke`. It
 trains each model briefly on a small slice of data (roughly 10 to 20 minutes for all four on a
@@ -238,7 +240,8 @@ A few things are worth knowing when reading the numbers.
 - Calibration uses real training examples, never random noise, because noise teaches the
   converter the wrong ranges.
 - Every result row records the processor, operating system, Python and library versions
-  that produced it.
+  that produced it. New runs also share a `run_id` across their FP32 and INT8 rows,
+  so the report never compares different experiment sessions.
 
 The [methodology](docs/methodology.md) covers each choice in detail.
 
