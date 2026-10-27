@@ -24,6 +24,9 @@ faster at all. On an ARM64 server CPU every quantized model was faster, up to 3.
 times. Those historical models were separately trained, not identical weights
 benchmarked on both machines.
 
+Use the [constraint-based recommender](recommender.md) to select only measured
+variants that meet your accuracy, latency, model size and memory budgets.
+
 See the [full results](report.md) for the per-model breakdown, the
 [methodology](methodology.md) for measurement boundaries, and
 [Reproduce and verify](reproducibility.md) for no-training checks and controlled
