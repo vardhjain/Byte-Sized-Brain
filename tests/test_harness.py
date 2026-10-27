@@ -108,3 +108,70 @@ def test_harness_exposes_raw_latencies_only_when_requested() -> None:
     measured = benchmark_inference(**kwargs, include_latencies=True)
     assert len(measured["latencies_ms"]) == 3
     assert all(ms >= 0 for ms in measured["latencies_ms"])
+
+
+def test_preparation_and_model_timing_are_from_the_same_calls(monkeypatch) -> None:
+    """One prepared sample, one model call, three clock reads per example."""
+    from byte_sized_brain.benchmark import harness
+
+    # Example 1: preparation 2 ms, model 5 ms.
+    # Example 2: preparation 5 ms, model 1 ms.
+    ticks = iter([0.0, 0.002, 0.007, 1.0, 1.005, 1.006])
+    monkeypatch.setattr(harness.time, "perf_counter", lambda: next(ticks))
+    calls = []
+
+    def prepare(sample: int) -> int:
+        calls.append(("prepare", sample))
+        return sample + 1
+
+    def predict(sample: int) -> int:
+        calls.append(("predict", sample))
+        return sample
+
+    m = benchmark_inference(
+        predict,
+        [0, 1],
+        [1, 2],
+        num_samples=2,
+        warmup=0,
+        decision_fn=int,
+        prepare_fn=prepare,
+        include_latencies=True,
+        include_stage_latencies=True,
+    )
+    assert calls == [
+        ("prepare", 0),
+        ("predict", 1),
+        ("prepare", 1),
+        ("predict", 2),
+    ]
+    assert m["predictions"] == [1, 2]
+    assert list(m["latencies_ms"]) == pytest.approx([5.0, 1.0])
+    assert list(m["prep_latencies_ms"]) == pytest.approx([2.0, 5.0])
+    assert list(m["e2e_latencies_ms"]) == pytest.approx([7.0, 6.0])
+    assert m["latency_ms_mean"] == pytest.approx(3.0)
+    for model, prep, total in zip(
+        m["latencies_ms"], m["prep_latencies_ms"], m["e2e_latencies_ms"], strict=True
+    ):
+        assert total == pytest.approx(model + prep)
+
+
+def test_stage_timers_are_optional_and_do_not_change_legacy_output() -> None:
+    common = {
+        "predict_fn": lambda sample: sample,
+        "samples": [1, 2],
+        "labels": [1, 2],
+        "num_samples": 2,
+        "warmup": 0,
+        "decision_fn": int,
+        "prepare_fn": lambda sample: sample,
+    }
+    old = benchmark_inference(**common)
+    assert "latencies_ms" not in old
+    assert "prep_latencies_ms" not in old
+    assert "e2e_latencies_ms" not in old
+    timed = benchmark_inference(**common, include_stage_latencies=True)
+    assert timed["accuracy"] == old["accuracy"]
+    assert "latencies_ms" not in timed
+    assert len(timed["prep_latencies_ms"]) == 2
+    assert len(timed["e2e_latencies_ms"]) == 2

@@ -14,7 +14,10 @@ records the same metrics in the same way for TFLite and ONNX Runtime.
 | **Size (MB)** | On-disk size of the `.tflite` or `.onnx` file that is benchmarked, in MiB (1,048,576 bytes). |
 | **Accuracy** | Top-1 accuracy (argmax, or a 0.5 threshold for the LSTM) over `num_samples` test examples. Both variants of a model see exactly the same examples. |
 | **Agreement** | Share of those examples where the variant predicts the same label as its FP32 baseline. |
-| **Latency mean / p50 / p95 (ms)** | Wall-clock time of one model call on a single example, pooled across timed passes. p95 shows tail behaviour the mean hides. |
+| **Model-only latency mean / p50 / p95 (ms)** | Existing `latency_ms_*` fields: wall-clock time of `runner.invoke()` only, pooled across timed passes. This remains the basis for the README's historical speedup numbers. |
+| **Input preparation latency (ms)** | New `input_prep_latency_ms_*` fields: the runtime adapter's `runner.prepare()`, such as float-to-INT8 quantization, tensor reshaping, or assembling an ONNX input feed. |
+| **Prepared-input end-to-end latency (ms)** | New `e2e_latency_ms_*` fields: `runner.prepare() + runner.invoke()` on the **same** inference call. Mean, p50, p95, and when repeated, CI and pass SD are reported. These do not include loading/decoding a raw input, resize/normalization, tokenization, model startup or output-to-label decoding. |
+| **Prepared-input speedup** | `e2e_latency_speedup_x` is the paired FP32 mean prepared-input latency divided by the quantized variant's mean within the same run ID. |
 | **Latency uncertainty** | Optional full-pass repeats; bootstrap interval and standard deviation are calculated from mean latency **per pass**, not treating each call as an independent machine benchmark. Blank when only one pass is run. |
 | **Paired accuracy delta** | Seeded paired bootstrap 95% interval for quantized accuracy minus FP32 accuracy, resampling matching held-out examples. |
 | **McNemar exact p-value** | Two-sided exact test from samples where exactly one variant is correct; also records how many examples each variant alone gets right. |
@@ -33,11 +36,22 @@ same architecture.
 
 ### Why these choices
 
-- **Only the model call is timed.** A full-integer TFLite model takes INT8 input, so
-  each float sample has to be quantized first. That conversion happens in NumPy, before
-  the clock starts. An earlier version of the harness timed it, and for the smallest
-  model the NumPy work cost more than the model itself, which made INT8 look slower
-  than FP32 when the interpreter was in fact faster.
+- **Two latency boundaries, measured together.** The original `latency_ms_*` timer
+  intentionally excludes input preparation to isolate runtime model-call performance.
+  A full-integer TFLite model takes INT8 input, so `runner.prepare()` may quantize an
+  FP32 input in NumPy; that cost is now measured separately and in the `e2e_latency_ms_*`
+  timer. The same inference pass produces both timing measurements, rather than
+  invoking the model twice. The model-only series remains comparable to historical
+  results; the new fields remain blank for historical measurements until rerun.
+- **The inclusive boundary is not the entire user-facing application.** MNIST and
+  CIFAR10 arrays are already loaded (and CIFAR10 resized and normalized), while
+  IMDB inputs are already padded/tokenized or encoded. Timing starts when the
+  benchmark hands one of these ready examples to `runner.prepare()`; it stops
+  when `runner.invoke()` returns, before predictions are turned into labels.
+  It does not include raw file/image decoding, resizing, tokenizer execution,
+  transport/network overhead, device sensor I/O, or initializing the model.
+  These upstream steps would need separate instrumentation to claim raw-request
+  or application end-to-end latency.
 - **Memory is measured in a fresh process per variant.** Once a model is loaded, running
   it barely changes the process's memory, so a measurement taken around the benchmark
   loop records only noise. Instead, a child process imports the runtime, notes its
@@ -89,11 +103,14 @@ Both variants can have the same overall accuracy while predicting differently;
 `agreement` reports the fraction of identical predicted labels. Historical CSVs
 do not have paired prediction statistics; those fields remain blank until rerun.
 
-The published latency figures are one pass on a laptop, with typical run-to-run
-variation of 10–20 percent. The new opt-in timing repeat option runs the exact same
-examples and warm-up per pass, recording per-call mean/p50/p95 across all passes.
+The published model-only latency figures are one pass on a laptop, with typical
+run-to-run variation of 10–20 percent. The new prepared-input and preparation
+timings are collected only when benchmarks are rerun with updated code. The opt-in
+timing repeat option runs the exact same examples and warm-up per pass, recording
+per-call model-only, preparation, and inclusive mean/p50/p95 across all passes.
 A seeded 2,000-resample bootstrap interval and sample SD of **per-pass mean
-latency** are available for two or more passes, not for a single pass.
+latency** are available for model-only and prepared-input inclusive latency
+when two or more passes are collected, not for a single pass.
 Resampling passes (rather than individual calls) avoids claiming neighboring
 inferences are independent timing experiments. These intervals describe variation
 during this benchmark session, *not* across machines or thermal states.

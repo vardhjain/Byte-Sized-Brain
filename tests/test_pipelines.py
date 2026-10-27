@@ -73,6 +73,11 @@ def test_benchmark_variants_produces_one_scored_row_per_variant(
     assert all(r["num_samples"] == 4 for r in rows)
     assert [r["agreement"] for r in rows] == [1.0, 1.0]
     assert all(r["threads"] == 1 and r["rss_delta_mb"] == 1.0 for r in rows)
+    assert all(r["e2e_latency_ms_mean"] >= r["latency_ms_mean"] for r in rows)
+    assert all(r["input_prep_latency_ms_mean"] >= 0 for r in rows)
+    assert all(r["e2e_latency_ms_p95"] >= r["e2e_latency_ms_p50"] for r in rows)
+    # The one-pass default does not fabricate an uncertainty interval.
+    assert all(r["e2e_latency_ms_ci95_low"] == "" for r in rows)
 
 
 @pytest.mark.parametrize(
@@ -114,6 +119,10 @@ def test_benchmark_repeats_keep_predictions_paired_and_publish_uncertainty(
     assert all(r["latency_ms_ci95_low"] != "" for r in rows)
     assert all(r["latency_ms_ci95_high"] != "" for r in rows)
     assert all(r["latency_pass_std_ms"] != "" for r in rows)
+    assert all(r["e2e_latency_pass_std_ms"] != "" for r in rows)
+    assert all(r["e2e_latency_ms_ci95_low"] != "" for r in rows)
+    assert all(r["e2e_latency_ms_ci95_high"] != "" for r in rows)
+    assert all(r["e2e_latency_ms_mean"] >= r["latency_ms_mean"] for r in rows)
     assert all(r["mcnemar_pvalue"] == 1.0 for r in rows)
     assert all(r["accuracy_delta_ci95_low"] == 0.0 for r in rows)
     assert all(r["accuracy_delta_ci95_high"] == 0.0 for r in rows)

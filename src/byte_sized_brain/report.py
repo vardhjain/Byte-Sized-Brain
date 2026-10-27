@@ -152,6 +152,12 @@ def summarize(df: pd.DataFrame) -> pd.DataFrame:
     for _, r in df.iterrows():
         b = baselines.get((str(r["pipeline"]), str(r["run_id"])))
         size_red = lat_speedup = acc_delta = float("nan")
+        e2e_speedup: float | str = ""
+        if b is not None:
+            fp_e2e = _optional_number(b, "e2e_latency_ms_mean")
+            variant_e2e = _optional_number(r, "e2e_latency_ms_mean")
+            if fp_e2e != "" and variant_e2e != "" and float(variant_e2e) > 0:
+                e2e_speedup = round(float(fp_e2e) / float(variant_e2e), 2)
         if b is not None and b["size_mb"]:
             size_red = 100.0 * (b["size_mb"] - r["size_mb"]) / b["size_mb"]
             if r["latency_ms_mean"]:
@@ -181,6 +187,16 @@ def summarize(df: pd.DataFrame) -> pd.DataFrame:
                 if "agreement" in r and pd.notna(r["agreement"])
                 else "",
                 "latency_ms_mean": round(r["latency_ms_mean"], 3),
+                "input_prep_latency_ms_mean": _optional_number(r, "input_prep_latency_ms_mean"),
+                "input_prep_latency_ms_p50": _optional_number(r, "input_prep_latency_ms_p50"),
+                "input_prep_latency_ms_p95": _optional_number(r, "input_prep_latency_ms_p95"),
+                "e2e_latency_ms_mean": _optional_number(r, "e2e_latency_ms_mean"),
+                "e2e_latency_ms_p50": _optional_number(r, "e2e_latency_ms_p50"),
+                "e2e_latency_ms_p95": _optional_number(r, "e2e_latency_ms_p95"),
+                "e2e_latency_pass_std_ms": _optional_number(r, "e2e_latency_pass_std_ms"),
+                "e2e_latency_ms_ci95_low": _optional_number(r, "e2e_latency_ms_ci95_low"),
+                "e2e_latency_ms_ci95_high": _optional_number(r, "e2e_latency_ms_ci95_high"),
+                "e2e_latency_speedup_x": e2e_speedup,
                 "latency_passes": _optional_number(r, "latency_passes", decimals=0),
                 "latency_pass_std_ms": _optional_number(r, "latency_pass_std_ms"),
                 "latency_ms_ci95_low": _optional_number(r, "latency_ms_ci95_low"),
@@ -431,6 +447,14 @@ def generate_report(results_dir: Path | None = None) -> Path | None:
         "`mcnemar_pvalue` is McNemar's exact two-sided test on correctness changes. "
         "`fp32_only_correct` / `variant_only_correct` count the discordant examples. "
         "`agreement` is the share of examples with the same predicted label.",
+        "- `latency_ms_mean` measures the runtime's model invocation alone; "
+        "`input_prep_latency_ms_*` measures runtime tensor/feed preparation; "
+        "`e2e_latency_ms_*` measures preparation plus model invocation on the same "
+        "input and inference call. These *prepared-input* timings do **not** include "
+        "loading examples, image decoding/resizing, text tokenization, model loading "
+        "or post-inference classification. `e2e_latency_speedup_x` compares "
+        "FP32 and quantized variants from the same run. Historical rows have "
+        "blank preparation/combined timing fields.",
         "- `latency_passes` counts complete, independently repeated timing passes. "
         "`latency_ms_ci95_low/high` bootstrap the mean latency per pass; "
         "`latency_pass_std_ms` is the sample standard deviation of those means. "

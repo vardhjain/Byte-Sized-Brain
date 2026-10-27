@@ -204,3 +204,39 @@ def test_cnn_alternatives_do_not_replace_static_int8_in_headline() -> None:
     assert featured[0][2]["variant"] == "int8"
     assert _paired(df, "x86_64").iloc[0]["q_lat"] == 5.0
     assert "10.0 → 5.00 ms" in _readme_table(df, "x86_64")
+
+
+def test_e2e_latency_speedup_requires_same_run_and_both_measurements() -> None:
+    df_rows = _rows(latency=10.0)
+    for row in df_rows:
+        row.update(run_id="paired-run")
+    df_rows[0].update(
+        e2e_latency_ms_mean=16.0,
+        input_prep_latency_ms_mean=6.0,
+        e2e_latency_ms_p50=16.0,
+        e2e_latency_ms_p95=17.0,
+    )
+    df_rows[1].update(
+        e2e_latency_ms_mean=8.0,
+        input_prep_latency_ms_mean=3.0,
+        e2e_latency_ms_p50=8.0,
+        e2e_latency_ms_p95=9.0,
+    )
+    summary = summarize(pd.DataFrame(df_rows))
+    quant = summary.loc[summary["variant"] == "int8"].iloc[0]
+    assert quant["latency_speedup_x"] == 2.0
+    assert quant["e2e_latency_speedup_x"] == 2.0
+    assert quant["e2e_latency_ms_mean"] == 8.0
+    assert quant["input_prep_latency_ms_mean"] == 3.0
+    assert quant["e2e_latency_ms_ci95_low"] == ""
+
+    # A newer variant from another run must not use the prior FP32 e2e baseline.
+    foreign = {**df_rows[1], "run_id": "different-run"}
+    extra = summarize(pd.DataFrame([df_rows[0], foreign]))
+    assert extra.loc[extra["variant"] == "int8", "e2e_latency_speedup_x"].iloc[0] == ""
+
+
+def test_historical_rows_do_not_claim_end_to_end_latency() -> None:
+    summary = summarize(_df())
+    assert all(v == "" for v in summary["e2e_latency_ms_mean"])
+    assert all(v == "" for v in summary["e2e_latency_speedup_x"])

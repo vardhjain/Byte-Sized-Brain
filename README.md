@@ -210,6 +210,21 @@ These are not automatically mixed into the historical results: the earlier
 ARM64 measurements used separately trained models. See the
 [methodology](docs/methodology.md#3-running-on-arm64) for limitations.
 
+### Model-only latency versus input preparation
+
+Every new benchmark now records **both** the existing model-only inference
+latency and a prepared-input inclusive latency: `runner.prepare() + runner.invoke()`.
+The extra measurement captures work such as float-to-INT8 tensor conversion that
+the model-only timer intentionally excludes. The report shows preparation cost,
+inclusive mean/p50/p95, and the paired FP32-versus-quantized inclusive speedup.
+
+The inclusive measurement starts from a **ready evaluation example**, not a raw
+photo or review. Loading images, resizing, normalizing, text tokenization,
+model startup, network transfer, and decoding output labels are outside its
+scope. Published October 2026 headline timings remain **model-only**, and older
+CSV rows have no inclusive measurements until the benchmarks are rerun.
+See [the measurement methodology](docs/methodology.md#1-what-is-measured).
+
 ### Measure variability, not just one timing run
 
 You can opt into repeated passes for a more defensible latency comparison:

@@ -104,9 +104,11 @@ def benchmark_variants(
                 f"Missing artifact {v.path}. Run `bsb convert {cfg.name}{smoke}` first."
             )
         runner = runners[v.runtime](v.path)
-        # Time only the model call. Input preparation (the float to INT8 quantization
-        # of a full-integer model) happens before the clock starts.
+        # Measure runtime input preparation and model invocation on the same
+        # inference calls; keep the published model-only latency definition.
         pass_latencies: list[np.ndarray] = []
+        pass_preparation: list[np.ndarray] = []
+        pass_end_to_end: list[np.ndarray] = []
         metrics: dict[str, Any] = {}
         predictions: list[int] = []
         for repeat in range(cfg.benchmark.repeats):
@@ -119,12 +121,23 @@ def benchmark_variants(
                 decision_fn=decision_fn,
                 prepare_fn=runner.prepare,
                 include_latencies=True,
+                include_stage_latencies=True,
             )
             pass_latencies.append(measured.pop("latencies_ms"))
+            pass_preparation.append(measured.pop("prep_latencies_ms"))
+            pass_end_to_end.append(measured.pop("e2e_latencies_ms"))
             if repeat == 0:
                 metrics = measured
                 predictions = metrics.pop("predictions")
         metrics.update(repeated_latency(pass_latencies, seed=cfg.seed))
+        prep = repeated_latency(pass_preparation, seed=cfg.seed)
+        e2e = repeated_latency(pass_end_to_end, seed=cfg.seed)
+        for suffix in ("mean", "p50", "p95"):
+            key = f"latency_ms_{suffix}"
+            metrics[f"input_prep_latency_ms_{suffix}"] = prep[key]
+            metrics[f"e2e_latency_ms_{suffix}"] = e2e[key]
+        for key in ("latency_pass_std_ms", "latency_ms_ci95_low", "latency_ms_ci95_high"):
+            metrics[f"e2e_{key}"] = e2e[key]
         metrics["threads"] = runner.threads
         # All variants are scored against the *same examples*, with FP32 first.
         baseline = predictions if baseline is None else baseline
@@ -156,10 +169,11 @@ def benchmark_variants(
             )
         )
         log.info(
-            "%-13s acc=%.4f lat=%.2fms (p95 %.2f) size=%.2fMB",
+            "%-13s acc=%.4f lat=%.2fms e2e=%.2fms (p95 %.2f) size=%.2fMB",
             v.name,
             metrics["accuracy"],
             metrics["latency_ms_mean"],
+            metrics["e2e_latency_ms_mean"],
             metrics["latency_ms_p95"],
             mb,
         )
