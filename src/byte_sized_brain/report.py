@@ -183,7 +183,9 @@ def summarize(df: pd.DataFrame) -> pd.DataFrame:
                 "latency_ms_ci95_low": _optional_number(r, "latency_ms_ci95_low"),
                 "latency_ms_ci95_high": _optional_number(r, "latency_ms_ci95_high"),
                 "paired_accuracy_delta_ci95": _paired_delta_interval(r),
-                "mcnemar_pvalue": _optional_number(r, "mcnemar_pvalue", decimals=9),
+                "mcnemar_pvalue": float(r["mcnemar_pvalue"])
+                if pd.notna(r.get("mcnemar_pvalue")) and r.get("mcnemar_pvalue") != ""
+                else "",
                 "fp32_only_correct": _optional_number(r, "fp32_only_correct", decimals=0),
                 "variant_only_correct": _optional_number(
                     r, "variant_only_correct", decimals=0
