@@ -127,9 +127,7 @@ def test_cnn_optional_quantizers_run_toy_depthwise_model(tmp_path):
         ]
     )
     saved = export_savedmodel(model, tmp_path / "saved")
-    calibration = np.random.default_rng(17).uniform(
-        -1, 1, (10, 16, 16, 3)
-    ).astype("float32")
+    calibration = np.random.default_rng(17).uniform(-1, 1, (10, 16, 16, 3)).astype("float32")
 
     dynamic = tflite.to_dynamic_range(saved, tmp_path / "cnn_dynamic_range.tflite")
     selective = tflite.to_int8_except_depthwise(
