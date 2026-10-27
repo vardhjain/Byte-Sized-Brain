@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import csv
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -147,3 +149,48 @@ def test_cross_hardware_comparison_rejects_changed_model(tmp_path: Path) -> None
         writer.writerows(rows)
     with pytest.raises(ValueError, match="Model bytes differ"):
         compare_results(x86, arm)
+
+
+def test_cross_hardware_verifier_runs_without_installed_dependencies(tmp_path: Path) -> None:
+    """Prevent the real workflow's old failure: -m loads benchmark/__init__ -> NumPy.
+
+    The final job deliberately installs *no* project dependencies, so it invokes
+    the stdlib-only verification file with -I -S. This tests that exact entrypoint
+    on two real-shaped archived result folders.
+    """
+    source = tmp_path / "source"
+    _fake_models(source)
+    manifest = json.loads(
+        pack_bundle("ffn_mnist", tmp_path / "bundle", source=source).read_text(
+            encoding="utf-8"
+        )
+    )
+    x86, arm = tmp_path / "x86", tmp_path / "arm"
+    _write_cross_results(x86, manifest, "x86_64")
+    _write_cross_results(arm, manifest, "aarch64")
+    verifier = (
+        Path(__file__).resolve().parents[1]
+        / "src"
+        / "byte_sized_brain"
+        / "benchmark"
+        / "cross_hardware.py"
+    )
+    command = [sys.executable, "-I", "-S", str(verifier), str(x86), str(arm)]
+    finished = subprocess.run(command, capture_output=True, text=True, check=False)
+    assert finished.returncode == 0, finished.stderr
+    assert "identical model SHA-256" in finished.stdout
+    assert "ffn_mnist/fp32" in finished.stdout
+    assert "ffn_mnist/int8" in finished.stdout
+
+    # The entrypoint must reject a corrupt digest even without installed deps.
+    csv_file = arm / "ffn_mnist.csv"
+    with csv_file.open(encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    rows[0]["model_sha256"] = "0" * 64
+    with csv_file.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+    failed = subprocess.run(command, capture_output=True, text=True, check=False)
+    assert failed.returncode != 0
+    assert "Model bytes differ" in failed.stderr
