@@ -144,3 +144,11 @@ def test_other_pipelines_cannot_claim_cnn_alternatives() -> None:
 
 def test_cnn_alternatives_default_to_none() -> None:
     assert load_config("cnn_cifar10").convert.cnn_alternatives == []
+
+
+def test_benchmark_repeats_are_bounded() -> None:
+    cfg = load_config("ffn_mnist")
+    assert cfg.benchmark.repeats == 1
+    for invalid in (0, 51):
+        with pytest.raises(ValidationError):
+            cfg.benchmark.repeats = invalid
