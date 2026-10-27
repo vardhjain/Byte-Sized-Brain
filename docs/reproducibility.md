@@ -28,20 +28,20 @@ Especially useful tests to inspect:
 
 | Claim | Reproducible evidence |
 | --- | --- |
-| Model-only, input-preparation and combined latency use the same calls | [Deterministic clock tests](../tests/test_harness.py) |
-| Accuracy deltas account for paired FP32/INT8 predictions | [McNemar and paired bootstrap tests](../tests/test_statistics.py) |
-| Duplicate experiments do not overwrite unrelated runs | [CSV/run-ID tests](../tests/test_metrics.py) |
-| Architecture comparisons use byte-identical model files | [Bundle integrity tests](../tests/test_model_bundle.py) |
-| Published headline matches committed CSV values | [Committed-result tests](../tests/test_committed_results.py) |
+| Model-only, input-preparation and combined latency use the same calls | [Deterministic clock tests](https://github.com/vardhjain/Byte-Sized-Brain/blob/main/tests/test_harness.py) |
+| Accuracy deltas account for paired FP32/INT8 predictions | [McNemar and paired bootstrap tests](https://github.com/vardhjain/Byte-Sized-Brain/blob/main/tests/test_statistics.py) |
+| Duplicate experiments do not overwrite unrelated runs | [CSV/run-ID tests](https://github.com/vardhjain/Byte-Sized-Brain/blob/main/tests/test_metrics.py) |
+| Architecture comparisons use byte-identical model files | [Bundle integrity tests](https://github.com/vardhjain/Byte-Sized-Brain/blob/main/tests/test_model_bundle.py) |
+| Published headline matches committed CSV values | [Committed-result tests](https://github.com/vardhjain/Byte-Sized-Brain/blob/main/tests/test_committed_results.py) |
 
 The tests check **implementation correctness**, not new hardware performance.
 
 ## 2. Inspect the historical evidence
 
 The benchmark inputs for the documentation are the committed files under
-[`benchmarks/results/`](../benchmarks/results/). The CNN quantization
+[`benchmarks/results/`](https://github.com/vardhjain/Byte-Sized-Brain/tree/main/benchmarks/results/). The CNN quantization
 investigation is separately recorded in
-[`benchmarks/results/ablations/cnn_int8_ablation.csv`](../benchmarks/results/ablations/cnn_int8_ablation.csv).
+[`benchmarks/results/ablations/cnn_int8_ablation.csv`](https://github.com/vardhjain/Byte-Sized-Brain/blob/main/benchmarks/results/ablations/cnn_int8_ablation.csv).
 
 ```bash
 # With the core dependencies installed:
