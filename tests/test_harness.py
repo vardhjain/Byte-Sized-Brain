@@ -93,3 +93,18 @@ def test_labels_shorter_than_samples_cap_the_run() -> None:
         decision_fn=lambda o: int(o),
     )
     assert m["num_samples"] == 2
+
+
+def test_harness_exposes_raw_latencies_only_when_requested() -> None:
+    kwargs = dict(
+        predict_fn=lambda sample: sample,
+        samples=[0, 1, 2],
+        labels=[0, 1, 2],
+        num_samples=3,
+        warmup=0,
+        decision_fn=int,
+    )
+    assert "latencies_ms" not in benchmark_inference(**kwargs)
+    measured = benchmark_inference(**kwargs, include_latencies=True)
+    assert len(measured["latencies_ms"]) == 3
+    assert all(ms >= 0 for ms in measured["latencies_ms"])
