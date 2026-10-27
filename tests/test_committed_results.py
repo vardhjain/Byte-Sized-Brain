@@ -35,8 +35,11 @@ def test_committed_results_are_full_runs_in_the_current_schema(
     with csv_path.open(encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
-    # Published results from October 2026 predate the run_id column.
-    assert reader.fieldnames in (RESULT_COLUMNS, RESULT_COLUMNS[:-1])
+    # The published October 2026 rows predate run_id and uncertainty fields.
+    # A migrated result may have run_id but no uncertainty columns.
+    legacy = RESULT_COLUMNS[: RESULT_COLUMNS.index("run_id")]
+    with_run_id = RESULT_COLUMNS[: RESULT_COLUMNS.index("latency_passes")]
+    assert reader.fieldnames in (legacy, with_run_id, RESULT_COLUMNS)
 
     full = load_config(name)
     pipeline = get_pipeline(name)
