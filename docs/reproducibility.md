@@ -12,7 +12,7 @@ Use Python 3.11 or 3.12, from the repository root:
 ```bash
 python -m venv .venv
 # macOS/Linux: source .venv/bin/activate
-# Windows PowerShell: .venv\Scripts\Activate.ps1
+# Windows PowerShell: ./.venv/Scripts/Activate.ps1
 python -m pip install -c requirements.txt -e ".[dev]"
 bsb list
 pytest -m "not smoke" tests
@@ -20,8 +20,7 @@ pytest -m "not smoke" tests
 
 This installs the core, test, and reporting dependencies, **not** TensorFlow,
 PyTorch or the training datasets. Framework-specific integration tests may
-skip when those frameworks are absent; the GitHub Actions [CI workflow](
-https://github.com/vardhjain/Byte-Sized-Brain/actions/workflows/ci.yml)
+skip when those frameworks are absent; the GitHub Actions [CI workflow](https://github.com/vardhjain/Byte-Sized-Brain/actions/workflows/ci.yml)
 installs them in separate jobs and exercises x86_64/ARM64 and Python 3.11/3.12.
 
 Especially useful tests to inspect:
@@ -104,8 +103,7 @@ model and preparing the same environment.
 
 ## 4. Controlled x86 vs native ARM64
 
-Go to [Actions → Cross-hardware benchmark (identical artifacts)](
-https://github.com/vardhjain/Byte-Sized-Brain/actions/workflows/arm-benchmark.yml)
+Go to [Actions → Cross-hardware benchmark (identical artifacts)](https://github.com/vardhjain/Byte-Sized-Brain/actions/workflows/arm-benchmark.yml)
 and select **Run workflow**. It defaults to `ffn_mnist`; other pipelines,
 especially full DistilBERT training, require considerably more time.
 
