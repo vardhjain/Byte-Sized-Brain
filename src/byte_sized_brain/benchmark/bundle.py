@@ -185,7 +185,9 @@ def install_bundle(
     destination = Path(destination)
     for entry in manifest["files"]:
         relative = entry["path"]
-        target = _relative_path(destination.parent, f"{destination.name}/" + relative.removeprefix("artifacts/"))
+        target = _relative_path(
+            destination.parent, f"{destination.name}/" + relative.removeprefix("artifacts/")
+        )
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(_relative_path(bundle, relative), target)
         if file_sha256(target) != entry["sha256"]:
