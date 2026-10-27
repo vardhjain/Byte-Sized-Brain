@@ -214,6 +214,28 @@ A newer incomplete pair is skipped. The full history remains in the CSV and deta
     storing activations as 8-bit integers, mostly in the depthwise convolutions. The
     usual fixes are quantization-aware training, keeping the depthwise layers in float,
     or using dynamic-range quantization for this model.
+
+  Both alternatives can now be benchmarked with the standard `bsb` harness (same
+  holdout images, thread settings, memory isolation and run ID):
+
+  ```bash
+  bsb train cnn_cifar10
+  bsb convert cnn_cifar10 --cnn-alternatives
+  bsb benchmark cnn_cifar10 --cnn-alternatives
+  bsb report
+  ```
+
+  - `dynamic_range` is a supported, weights-focused TFLite converter path;
+    quantized weights do **not** guarantee fully integer activation execution.
+  - `int8_except_depthwise` uses TensorFlow's **experimental**
+    `QuantizationDebugger` denylist for `DEPTHWISE_CONV_2D`, so the resulting
+    graph has mixed precision and its converter support is version-dependent.
+  - These produce separately named `.tflite` files and appear in the detailed
+    results alongside `fp32` and `int8`; the README headline continues to
+    compare full static INT8. `--smoke` keeps results out of the published CSV.
+  - The ablation values shown above are **historical accuracy and size only**;
+    they are not new main-pipeline latency or memory measurements. Run the commands
+    above to obtain those metrics on your machine.
 - **DistilBERT is also a reduced-budget model.** It is fine-tuned on 3,000 reviews for
   2 epochs on a CPU, with inputs truncated to 128 tokens, which cuts off most of the
   evaluation reviews. That is why it scores 84.6%, no better than the LSTM. The
