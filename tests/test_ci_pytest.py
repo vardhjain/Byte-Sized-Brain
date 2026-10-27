@@ -34,7 +34,7 @@ def test_ci_pytest_propagates_status_and_rejects_skips(
     bindir.mkdir()
     fake_pytest = bindir / "pytest"
     fake_pytest.write_text(
-        '#!/usr/bin/env bash\n'
+        "#!/usr/bin/env bash\n"
         'printf "%s\\n" "$*" > "$MOCK_ARG_FILE"\n'
         'printf "%s\\n" "$MOCK_OUTPUT"\n'
         'exit "$MOCK_EXIT"\n',
