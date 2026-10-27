@@ -178,8 +178,7 @@ def recommend(
             loss_pts = (base_accuracy - accuracy) * 100
             if loss_pts > limits.max_accuracy_drop_pts + 1e-9:
                 reasons.append(
-                    f"accuracy drop {loss_pts:.2f} pts exceeds "
-                    f"{limits.max_accuracy_drop_pts:g} pts"
+                    f"accuracy drop {loss_pts:.2f} pts exceeds {limits.max_accuracy_drop_pts:g} pts"
                 )
             if limits.min_accuracy is not None and accuracy + 1e-12 < limits.min_accuracy:
                 reasons.append(f"accuracy {accuracy:.3f} below {limits.min_accuracy:.3f}")
