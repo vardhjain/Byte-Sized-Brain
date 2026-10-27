@@ -19,16 +19,16 @@ def _run(
     device: str = "CPU A",
     arch: str = "x86_64",
 ) -> list[dict]:
-    fields = dict(
-        pipeline="cnn_cifar10",
-        arch=arch,
-        emulated=False,
-        run_id=name,
-        timestamp=stamp,
-        device=device,
-        os="Linux",
-        num_samples=1000,
-    )
+    fields = {
+        "pipeline": "cnn_cifar10",
+        "arch": arch,
+        "emulated": False,
+        "run_id": name,
+        "timestamp": stamp,
+        "device": device,
+        "os": "Linux",
+        "num_samples": 1000,
+    }
     return [
         dict(
             fields,
