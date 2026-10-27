@@ -107,9 +107,7 @@ def test_benchmark_repeats_keep_predictions_paired_and_publish_uncertainty(
     for variant in variants:
         variant.path.write_bytes(b"\0" * 1024)
 
-    rows = benchmark_variants(
-        cfg, paths, variants, [0, 1, 2, 3], [0, 1, 9, 9], decision_fn=int
-    )
+    rows = benchmark_variants(cfg, paths, variants, [0, 1, 2, 3], [0, 1, 9, 9], decision_fn=int)
     assert len(rows) == 2
     assert {r["latency_passes"] for r in rows} == {3}
     assert len({r["run_id"] for r in rows}) == 1
