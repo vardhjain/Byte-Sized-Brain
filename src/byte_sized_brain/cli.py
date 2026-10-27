@@ -155,6 +155,7 @@ def cmd_recommend(args: argparse.Namespace) -> int:
         max_memory_mb=args.max_memory_mb,
         latency_kind=args.latency_kind,
         objective=args.objective,
+        require_paired_ci=args.require_paired_ci,
     )
     try:
         outcome = recommend_from_results(
@@ -269,6 +270,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     recommend.add_argument(
         "--objective", choices=["latency", "size", "memory", "accuracy"], default="latency"
+    )
+    recommend.add_argument(
+        "--require-paired-ci",
+        action="store_true",
+        help="require and respect paired 95% accuracy lower bounds (unavailable for legacy runs)",
     )
     recommend.add_argument("--json", action="store_true", help="machine-readable audit output")
     sub.add_parser("info", help="print system + library versions")
