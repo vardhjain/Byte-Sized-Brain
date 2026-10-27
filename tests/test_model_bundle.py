@@ -132,9 +132,7 @@ def test_cross_hardware_comparison_rejects_changed_model(tmp_path: Path) -> None
     source = tmp_path / "source"
     _fake_models(source)
     manifest = json.loads(
-        pack_bundle("ffn_mnist", tmp_path / "bundle", source=source).read_text(
-            encoding="utf-8"
-        )
+        pack_bundle("ffn_mnist", tmp_path / "bundle", source=source).read_text(encoding="utf-8")
     )
     x86, arm = tmp_path / "x86", tmp_path / "arm"
     _write_cross_results(x86, manifest, "x86_64")
