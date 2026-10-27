@@ -2,7 +2,7 @@
 
 # Byte-Sized Brain
 
-### Shrinking AI models to a quarter of their size, and measuring exactly what it costs
+### Quantization trade-offs across four ML models, with reproducible evidence
 
 **[Live demo](https://huggingface.co/spaces/vardhjain20/byte-sized-brain-demo)** &nbsp;·&nbsp; **[Full results](docs/report.md)** &nbsp;·&nbsp; **[How it is measured](docs/methodology.md)** &nbsp;·&nbsp; **[Docs site](https://vardhjain.github.io/Byte-Sized-Brain/)**
 
@@ -16,16 +16,37 @@
 ## What this is
 
 AI models are often too big and too slow for phones, cameras and other small devices.
-A common fix is **quantization**, which stores each of the model's internal numbers in
-8 bits instead of 32. It is a bit like saving a photo as a smaller JPEG. The picture is
-still there, stored with less detail, and most of the time nobody can tell the
-difference.
+A common fix is **quantization**, which represents model weights, and sometimes
+the values passed between layers, with fewer bits. Like saving a smaller image
+file, this can reduce storage and runtime memory use—but compression may change
+what the model predicts.
 
-"Most of the time" is not a measurement, though. Byte-Sized Brain trains four different
-AI models, shrinks each one, and then checks every model before and after in exactly
-the same way. How big is it? How often is it right? How fast does it answer? How much
+"Most of the time" is not a measurement, though. Byte-Sized Brain trains or
+fine-tunes four model families, converts each to a smaller inference format, and
+evaluates each FP32/quantized pair through the same benchmark harness. How big is it? How often is it right? How fast does it answer? How much
 memory does it need? The result is a straight answer to a practical question. When does
 shrinking a model come for free, and when does it quietly break something?
+
+## The engineering work
+
+This is an inference-systems and ML-evaluation project—not just four trained
+models. It combines TensorFlow/Keras, PyTorch, TFLite, ONNX Runtime and
+native x86/ARM64 testing, with reproducible experiments and a browser demo.
+
+| What I implemented | Where to verify it |
+| --- | --- |
+| Shared, batch-1 benchmark harness measuring accuracy, size, memory, model-only and input-preparation-inclusive latency | [Harness](src/byte_sized_brain/benchmark/harness.py) · [runners](src/byte_sized_brain/benchmark/runtimes.py) · [memory probe](src/byte_sized_brain/benchmark/memory.py) |
+| Quantization experiments, including a depthwise-convolution ablation that explains the CNN accuracy drop | [Ablation script](scripts/cnn_int8_ablation.py) · [recorded ablation results](benchmarks/results/ablations/cnn_int8_ablation.csv) |
+| Paired accuracy statistics and optional repeated-pass latency intervals | [Statistical implementation](src/byte_sized_brain/benchmark/statistics.py) · [tests](tests/test_statistics.py) |
+| Architecture-to-architecture model provenance: SHA-256 verified TFLite/ONNX files reused across x86 and ARM64 | [Manual benchmark workflow](.github/workflows/arm-benchmark.yml) · [bundle verification](src/byte_sized_brain/benchmark/bundle.py) |
+| Automated quality gates, native ARM64 tests, container smoke checks, and an interactive sentiment demo | [CI](.github/workflows/ci.yml) · [Docker CI](.github/workflows/docker.yml) · [demo](demo/hf_space/) |
+
+**Evidence boundary:** The headline numbers below are **historical, single-session
+model-only** benchmarks; x86 and ARM64 originally trained their models separately.
+The newer paired uncertainty, prepared-input timing and identical-artifact
+cross-hardware workflow are implemented and tested, but were **not** used to
+produce those historical numbers. See [Reproduce and verify](docs/reproducibility.md)
+for quick, low-cost checks and the steps required to produce new measurements.
 
 ## What it found
 
@@ -35,8 +56,9 @@ the original. The largest one, a DistilBERT language model, went from 255.5 MB t
 
 **Three of the four kept their accuracy.** The handwriting reader scored 97.0 percent
 before and after, and the LSTM review classifier scored 85.0 percent before and after.
-The DistilBERT review classifier went from 84.6 to 84.0 percent, which is 3 more
-mistakes out of 500 test reviews and well within sampling noise.
+The DistilBERT review classifier went from 84.6 to 84.0 percent—three more
+errors in 500 test reviews. That small difference is not evidence of equivalence;
+the historical result files lack paired confidence intervals.
 
 **One model paid a real price.** The photo classifier fell from 85.4 to 68.1 percent,
 getting 173 more of 1,000 test photos wrong. The [investigation below](#why-the-photo-classifier-lost-accuracy)
@@ -46,8 +68,9 @@ shows where that loss comes from and how to avoid nearly all of it.
 and the tiny handwriting reader both answered about 1.8 times faster, while the LSTM
 and the photo classifier took about the same time as before. On an ARM server
 processor every shrunken model was faster, from 1.3 times for the LSTM to 3.6 times
-for DistilBERT. Smaller does not automatically mean faster, and the answer changes
-with the hardware.
+for DistilBERT. Smaller does not automatically mean faster. Those ARM results came
+from **separately trained model artifacts**, however, and should not be treated
+as a controlled same-weights comparison across processors.
 
 Each row below compares the original model with its shrunken version.
 
@@ -163,6 +186,21 @@ new end-to-end benchmark of these additional variants.
 
 ## Run it yourself
 
+**Fast verification, without downloading models or training anything:**
+
+```bash
+python -m pip install -c requirements.txt -e ".[dev]"
+bsb list
+pytest -m "not smoke" tests
+```
+
+These checks exercise the framework-independent implementation; tests requiring
+uninstalled ML frameworks may skip. CI separately installs TensorFlow and other
+required runtimes. Full instructions and a verification checklist are in
+[Reproduce and verify](docs/reproducibility.md).
+
+**Reproduce training and conversion** (heavier; downloads ML frameworks and datasets):
+
 You need Python 3.11 or 3.12. The pinned install includes both TensorFlow and PyTorch,
 which is several gigabytes. Datasets and pretrained weights download on first use, about
 half a gigabyte more for all four models (the digit reader alone needs about 11 MB).
@@ -260,8 +298,8 @@ bsb demo distilbert_imdb          # built-in example reviews, or pass your own i
 These timings are much lower than the table above (about 30 ms against 99 ms for the
 original model) because the two are measured differently. The demo reports the single
 fastest of 15 runs on one review, while the benchmark reports the average over 500
-different reviews, slow runs included, on a machine that was busier at the time. The
-ratio between the two versions is what carries over.
+different reviews, slow runs included, on a machine that was busier at the time. Do not treat that best-of-15 demo measurement as comparable to the
+full benchmark mean, or expect its speed ratio to transfer between machines.
 
 A local web version of the demo is `pip install -e ".[all,demo]"` followed by
 `streamlit run demo/app.py`.
@@ -304,9 +342,11 @@ and tests) and `make smoke-all`.
 
 A few things are worth knowing when reading the numbers.
 
-- With 500 test reviews, one review is 0.2 percentage points. Accuracy differences
-  smaller than about 2 to 3 points are within sampling noise. The photo classifier's
-  17-point drop is far outside it.
+- With 500 test reviews, one review is 0.2 percentage points. The historical
+  per-model Wilson intervals do **not** establish whether a small FP32/INT8
+  accuracy difference is significant, because both variants see the same examples.
+  New runs compute paired bootstrap intervals and exact McNemar tests. The photo
+  classifier's 17.3-point drop is large in practical terms.
 - The result files also record how often the two versions of a model give the same
   answer. DistilBERT's two versions agree on 477 of 500 reviews, and the photo
   classifier's on 699 of 1,000.
@@ -343,10 +383,13 @@ and a shared cloud machine is a noisier place to time things than a dedicated on
 These rows live in the same result files as the x86 rows, and
 [docs/report.md](docs/report.md) lists both.
 
-The run is repeatable from the Actions tab (the "ARM64 benchmark" workflow). CI also
-runs the test suite and the TensorFlow Lite conversion on ARM64 for every change to
-`main` and every pull request, and a Docker image runs all four models under ARM
-emulation.
+The **historical ARM64 run** trained a different model on that machine.
+To produce a controlled comparison with identical model bytes, use the
+[manual cross-hardware workflow](.github/workflows/arm-benchmark.yml). It
+trains and converts once, verifies SHA-256 checksums and benchmarks both native
+architectures. It has not yet produced a replacement published dataset.
+CI also runs tests and TensorFlow Lite conversion on native ARM64 for every
+change to `main` and every pull request; ARM emulation is used for functional checks.
 
 ```bash
 make docker-build-arm   # build an ARM (aarch64) Docker image, emulated with QEMU
@@ -356,7 +399,10 @@ make benchmark-arm      # a tiny run of every model inside it, to prove they loa
 Emulation translates every ARM instruction in software, so its timings are not
 meaningful and its results stay out of the report. To add timings from your own ARM
 machine (a Raspberry Pi, AWS Graviton or Oracle Ampere), run
-`BSB_DEVICE=<machine-name> bsb run all` there. Each result row is stamped with its
+`BSB_DEVICE=raspberry-pi bsb benchmark ffn_mnist` there after transferring
+the **same verified artifacts** and installing dependencies. Use
+`bsb run all` only if you specifically intend to train different models on
+that machine. Each result row is stamped with its
 processor architecture, so new rows sit next to the existing ones without replacing
 them.
 
@@ -390,8 +436,10 @@ artifacts/             trained models (not committed, rebuilt on demand)
   tokens), which is why it scores no better than the LSTM here. The comparison between
   its two versions does not depend on that.
 - The committed numbers come from two machines, one x86 laptop and one shared ARM64
-  cloud runner, each measured once. Speed results can differ on other chips or with
-  other thread settings.
+  cloud runner, each measured once **with separately trained models**. Neither
+  hardware differences nor small accuracy differences have controlled estimates
+  of cross-run variability. The checksum-verified cross-hardware workflow is
+  available for future controlled experiments.
 
 ## Credits
 
