@@ -1,31 +1,41 @@
-name: ARM64 benchmark
+name: Cross-hardware benchmark (identical artifacts)
 
-# Trains, converts and benchmarks all four pipelines with their full configs on
-# GitHub's native ARM64 runner, then uploads the result files. It is started by
-# hand from the Actions tab, because it takes a few hours. The result rows are
-# committed afterwards, next to the x86 rows, by whoever started the run.
+# Manual by design: model training can be expensive on hosted runners.
+# Default to the small MNIST model. "all" is intentionally an explicit choice.
 on:
   workflow_dispatch:
     inputs:
       pipelines:
-        description: "Pipeline to run (a name from `bsb list`, or all)"
+        description: "Train once on x86, then benchmark the exact same models on x86 and ARM64"
+        type: choice
         required: true
-        default: "all"
+        default: ffn_mnist
+        options:
+          - ffn_mnist
+          - cnn_cifar10
+          - rnn_imdb
+          - distilbert_imdb
+          - all
 
 permissions:
   contents: read
 
+concurrency:
+  group: identical-artifacts-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONUNBUFFERED: "1"
+  TF_CPP_MIN_LOG_LEVEL: "2"
+  TOKENIZERS_PARALLELISM: "false"
+  PIPELINES: ${{ inputs.pipelines }}
+
 jobs:
-  benchmark:
-    name: Full benchmark on native ARM64
-    runs-on: ubuntu-24.04-arm
+  prepare:
+    name: Train and convert once (x86_64)
+    runs-on: ubuntu-latest
     timeout-minutes: 350
-    env:
-      PIP_DISABLE_PIP_VERSION_CHECK: "1"
-      PYTHONUNBUFFERED: "1"
-      TF_CPP_MIN_LOG_LEVEL: "2"
-      TOKENIZERS_PARALLELISM: "false"
-      PIPELINES: ${{ inputs.pipelines }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -35,27 +45,82 @@ jobs:
           python-version: "3.11"
           cache: pip
           cache-dependency-path: requirements.txt
-      # Same install as the Docker images: a CPU-only torch, then the pinned set.
-      - name: Install the pinned environment
+      - name: Install the pinned CPU-only environment
         run: |
           pip install --index-url https://download.pytorch.org/whl/cpu torch==2.7.0
           pip install -r requirements.txt
           pip install --no-deps -e .
-      # /proc/cpuinfo has no model name on these machines, so label the rows here.
-      - name: Describe the machine
+      - name: Train model sources once
+        run: bsb train "$PIPELINES"
+      - name: Convert FP32 and quantized artifacts once
+        run: bsb convert "$PIPELINES"
+      - name: Bundle and checksum inference artifacts
+        run: |
+          python -m byte_sized_brain.benchmark.bundle pack "$PIPELINES" "$RUNNER_TEMP/model-bundle"
+          cat "$RUNNER_TEMP/model-bundle/manifest.json" >> "$GITHUB_STEP_SUMMARY"
+      - name: Share the immutable model bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: identical-model-artifacts
+          path: ${{ runner.temp }}/model-bundle/
+          if-no-files-found: error
+          retention-days: 7
+
+  measure:
+    name: Benchmark the same models on ${{ matrix.arch }}
+    needs: prepare
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    env:
+      BSB_RESULTS: ${{ runner.temp }}/results
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install the same pinned CPU-only environment
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu torch==2.7.0
+          pip install -r requirements.txt
+          pip install --no-deps -e .
+      - uses: actions/download-artifact@v8
+        with:
+          name: identical-model-artifacts
+          path: ${{ runner.temp }}/model-bundle
+      - name: Verify hashes and install original inference artifacts
+        run: |
+          python -m byte_sized_brain.benchmark.bundle install "$PIPELINES" "$RUNNER_TEMP/model-bundle"
+          cat "$RUNNER_TEMP/model-bundle/manifest.json"
+      - name: Describe native CPU and runtime
         run: |
           lscpu
           cpu="$(lscpu | sed -n 's/^Model name: *//p' | head -n 1)"
-          echo "BSB_DEVICE=${cpu:-ARM64} (GitHub-hosted runner, $(nproc) vCPU)" >> "$GITHUB_ENV"
-      - name: Show the environment
-        run: bsb info
-      - name: Train, convert and benchmark
-        run: bsb run "$PIPELINES"
-      - name: Show the ARM64 rows
-        run: grep -h "aarch64" benchmarks/results/*.csv | cut -d, -f2,6,8-13,17,19
-      - name: Upload the result files
+          echo "BSB_DEVICE=${cpu:-${{ matrix.arch }}} (GitHub-hosted, $(nproc) vCPU)" >> "$GITHUB_ENV"
+          bsb info
+      - name: Benchmark only; no training or conversion
+        run: bsb benchmark "$PIPELINES" --repeats 3
+      - name: Include the shared artifact manifest with results
+        run: |
+          cp "$RUNNER_TEMP/model-bundle/manifest.json" "$RUNNER_TEMP/results/model-manifest.json"
+          printf "## ${{ matrix.arch }} measurements\n" >> "$GITHUB_STEP_SUMMARY"
+          python -c 'import csv, glob; [(print(f, *(f"{r["variant"]}:{r["model_sha256"][:12]}" for r in csv.DictReader(open(f))))) for f in glob.glob("benchmarks/results/*.csv")]' || true
+          ls -lh "$RUNNER_TEMP/results"
+      - name: Upload architecture-specific results
         uses: actions/upload-artifact@v7
         with:
-          name: arm64-results
-          path: benchmarks/results/*.csv
+          name: results-${{ matrix.arch }}
+          path: ${{ runner.temp }}/results/
           if-no-files-found: error
+          retention-days: 30
