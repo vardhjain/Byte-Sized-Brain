@@ -39,7 +39,15 @@ def test_committed_results_are_full_runs_in_the_current_schema(
     # A migrated result may have run_id but no uncertainty columns.
     legacy = RESULT_COLUMNS[: RESULT_COLUMNS.index("run_id")]
     with_run_id = RESULT_COLUMNS[: RESULT_COLUMNS.index("latency_passes")]
-    assert reader.fieldnames in (legacy, with_run_id, RESULT_COLUMNS[:-1], RESULT_COLUMNS)
+    with_uncertainty = RESULT_COLUMNS[: RESULT_COLUMNS.index("model_sha256")]
+    with_model_hash = RESULT_COLUMNS[: RESULT_COLUMNS.index("input_prep_latency_ms_mean")]
+    assert reader.fieldnames in (
+        legacy,
+        with_run_id,
+        with_uncertainty,
+        with_model_hash,
+        RESULT_COLUMNS,
+    )
 
     full = load_config(name)
     pipeline = get_pipeline(name)
