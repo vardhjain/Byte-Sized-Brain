@@ -95,6 +95,7 @@ def _result_rows(arch: str, emulated: bool, latency: float) -> list[dict]:
             runtime="tflite",
             size_mb=size,
             metrics=metrics,
+            run_id=f"fixture-{arch}-{emulated}-{latency}",
         )
         row.update(arch=arch, emulated=emulated)
         rows.append(row)
