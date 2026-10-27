@@ -77,3 +77,8 @@ def test_benchmark_before_convert_gives_a_hint(
     assert main(["benchmark", "ffn_mnist"]) == 1
     assert ("ffn_mnist", "benchmark") not in fake_pipelines.calls
     assert "bsb convert ffn_mnist`" in cli_errors[0]
+
+
+def test_repeats_flag_reaches_benchmark(isolated_artifacts, fake_pipelines) -> None:
+    assert main(["run", "ffn_mnist", "--repeats", "5"]) == 0
+    assert {cfg.benchmark.repeats for cfg in fake_pipelines.configs} == {5}
