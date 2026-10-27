@@ -118,9 +118,12 @@ The workflow trains and converts once on x86, packages the inference files
 and manifest, verifies SHA-256 digests on both native architectures, runs
 benchmark-only jobs and **fails** if the resulting model hashes or
 evaluation sample counts disagree. Download `results-x86_64` and
-`results-aarch64` after a successful run. This workflow has been
-implemented and tested in CI, but its **full empirical comparison is not
-included** in the committed historical numbers.
+`results-aarch64` after a successful run. The first controlled MNIST run's
+benchmark jobs succeeded, and its evidence has been archived and tested:
+[read the independent x86/ARM64 MNIST comparison](mnist-cross-hardware.md).
+Its final job initially failed from a missing NumPy dependency, now fixed
+by a standard-library-only verifier. These controlled results are **kept
+separate** from the original, independently trained headline results.
 
 It uses GitHub-hosted runners and is manual-only. GitHub Actions minutes,
 storage allowances, runner availability and any applicable billing depend
