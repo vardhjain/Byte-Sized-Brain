@@ -1,19 +1,20 @@
 """Result-row schema and CSV IO.
 
-Every benchmark produces one row per (pipeline, variant). Each row is fully
-self-describing (it carries the device, architecture, OS and the ``emulated``
-flag), so x86, emulated-ARM and real-ARM results can live in one CSV and be
-compared honestly. :func:`write_results` merges rather than overwrites, so a run
-on one architecture never erases the rows another architecture produced.
+Every benchmark produces one row per (run_id, pipeline, variant). A paired
+FP32/quantized benchmark shares a run ID. Results carry machine metadata and
+are preserved across repeated runs on the same architecture or device.
+:func:`write_results` also migrates pre-run-ID CSVs transparently.
 """
 
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from uuid import uuid4
 
 from ..utils.sysinfo import collect_sysinfo, library_versions, normalize_arch
 
@@ -44,6 +45,7 @@ RESULT_COLUMNS = [
     "python",
     "emulated",
     "lib_versions",
+    "run_id",
 ]
 
 
@@ -60,10 +62,12 @@ def build_row(
     size_mb: float,
     metrics: dict[str, Any],
     timestamp: str | None = None,
+    run_id: str | None = None,
 ) -> dict[str, Any]:
     sysinfo = collect_sysinfo()
     row: dict[str, Any] = {
         "timestamp": timestamp or utc_timestamp(),
+        "run_id": run_id or uuid4().hex,
         "pipeline": cfg.name,
         "modality": cfg.modality,
         "framework": cfg.framework,
@@ -91,21 +95,44 @@ def _is_true(value: Any) -> bool:
     return str(value).strip().lower() in {"1", "true", "yes"}
 
 
-def result_key(row: dict[str, Any]) -> tuple[str, str, bool]:
-    """The (pipeline, arch, emulated) group a row belongs to."""
-    return (str(row["pipeline"]), normalize_arch(str(row["arch"])), _is_true(row["emulated"]))
+def effective_run_id(row: dict[str, Any]) -> str:
+    """Run identifier; infer a deterministic group for pre-0.5 CSV rows.
+
+    Legacy CSVs recorded a single FP32/INT8 pair per device and architecture,
+    but didn't contain a run ID. Both variants therefore receive the same
+    stable synthetic ID. History already overwritten by older versions cannot
+    be recovered.
+    """
+    explicit = str(row.get("run_id") or "").strip()
+    if explicit and explicit.lower() != "nan":
+        return explicit
+    identity = (
+        str(row["pipeline"]),
+        normalize_arch(str(row["arch"])),
+        str(_is_true(row["emulated"])),
+        str(row.get("device", "")),
+        str(row.get("os", "")),
+        str(row.get("python", "")),
+    )
+    digest = hashlib.sha256(json.dumps(identity).encode("utf-8")).hexdigest()[:16]
+    return f"legacy-{digest}"
+
+
+def result_key(row: dict[str, Any]) -> tuple[str, str]:
+    """A benchmark run is immutable unless its own ID is explicitly reused."""
+    return str(row["pipeline"]), effective_run_id(row)
 
 
 def write_results(rows: list[dict[str, Any]], csv_path: str | Path) -> Path:
-    """Write ``rows`` to ``csv_path``, keeping rows from other architectures.
+    """Append independent runs; replace only rows bearing the same run ID.
 
-    A new run replaces every existing row in the same (pipeline, arch, emulated)
-    group and leaves the others alone, so an x86 run and a real-ARM run of the
-    same pipeline can share one CSV.
+    Older CSVs without ``run_id`` are migrated in memory, preserving the
+    historical FP32/quantized pair under a deterministic legacy ID.
     """
     out = Path(csv_path)
     out.parent.mkdir(parents=True, exist_ok=True)
-    replaced = {result_key(r) for r in rows}
+    incoming = [{**r, "run_id": effective_run_id(r)} for r in rows]
+    replaced = {result_key(r) for r in incoming}
     kept: list[dict[str, Any]] = []
     if out.exists():
         with out.open(newline="", encoding="utf-8") as f:
@@ -116,11 +143,11 @@ def write_results(rows: list[dict[str, Any]], csv_path: str | Path) -> Path:
                     f"{out} is not a results file this version can merge into "
                     f"(missing columns: {sorted(absent)}). Move it aside and rerun."
                 )
-            kept = [r for r in reader if result_key(r) not in replaced]
+            kept = [{**r, "run_id": effective_run_id(r)} for r in reader if result_key(r) not in replaced]
     with out.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(
             f, fieldnames=RESULT_COLUMNS, extrasaction="ignore", lineterminator="\n"
         )
         writer.writeheader()
-        writer.writerows([*kept, *rows])
+        writer.writerows([*kept, *incoming])
     return out
