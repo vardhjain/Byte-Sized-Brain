@@ -73,9 +73,7 @@ def _run(
 
 
 def _pick(rows: list[dict], constraints: Constraints | None = None, **kwargs) -> dict:
-    return recommend(
-        pd.DataFrame(rows), pipeline="cnn_cifar10", constraints=constraints, **kwargs
-    )
+    return recommend(pd.DataFrame(rows), pipeline="cnn_cifar10", constraints=constraints, **kwargs)
 
 
 def test_speed_and_size_objectives_disagree_and_both_are_pareto() -> None:
@@ -112,7 +110,9 @@ def test_newest_complete_native_pair_skips_partial_or_emulated_data() -> None:
     first = _run(name="old", stamp="2026-10-24")
     new = _run(name="new", stamp="2026-10-25", device="CPU B")
     partial = _run(name="partial", stamp="2026-10-27")[:1]
-    emulated = [{**r, "emulated": True, "run_id": "emulated", "timestamp": "2026-10-29"} for r in new]
+    emulated = [
+        {**r, "emulated": True, "run_id": "emulated", "timestamp": "2026-10-29"} for r in new
+    ]
     result = _pick(first + new + partial + emulated)
     assert result["run_id"] == "new"
     assert result["device"] == "CPU B"
@@ -176,39 +176,43 @@ def test_invalid_thresholds_are_rejected(field: str, value: float) -> None:
         replace(Constraints(), **{field: value})
 
 
-def test_cli_json_uses_custom_results_directory_without_model_downloads(
-    tmp_path, capsys
-) -> None:
+def test_cli_json_uses_custom_results_directory_without_model_downloads(tmp_path, capsys) -> None:
     rows = _run()
     pd.DataFrame(rows).to_csv(tmp_path / "cnn_cifar10.csv", index=False)
-    assert main(
-        [
-            "recommend",
-            "cnn_cifar10",
-            "--results-dir",
-            str(tmp_path),
-            "--max-accuracy-drop-pts",
-            "1",
-            "--max-size-mb",
-            "2.1",
-            "--json",
-        ]
-    ) == 0
+    assert (
+        main(
+            [
+                "recommend",
+                "cnn_cifar10",
+                "--results-dir",
+                str(tmp_path),
+                "--max-accuracy-drop-pts",
+                "1",
+                "--max-size-mb",
+                "2.1",
+                "--json",
+            ]
+        )
+        == 0
+    )
     result = json.loads(capsys.readouterr().out)
     assert result["recommended_variant"] == "int8"
     assert result["candidates"][0]["feasible"] is False
     assert result["constraints"]["max_size_mb"] == 2.1
 
-    assert main(
-        [
-            "recommend",
-            "cnn_cifar10",
-            "--results-dir",
-            str(tmp_path),
-            "--max-size-mb",
-            "0.1",
-        ]
-    ) == 2
+    assert (
+        main(
+            [
+                "recommend",
+                "cnn_cifar10",
+                "--results-dir",
+                str(tmp_path),
+                "--max-size-mb",
+                "0.1",
+            ]
+        )
+        == 2
+    )
     assert "No measured variant" in capsys.readouterr().out
 
 
