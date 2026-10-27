@@ -167,3 +167,40 @@ def test_featured_architecture_does_not_depend_on_run_count() -> None:
         for row in arm:
             reruns.append({**row, "run_id": f"arm-{i}"})
     assert headline_arch(pd.DataFrame(x86 + arm + reruns)) == "x86_64"
+
+
+def test_cnn_alternatives_do_not_replace_static_int8_in_headline() -> None:
+    from byte_sized_brain.report import _featured_pairs, _paired, _readme_table
+
+    rows = _rows(latency=10.0)
+    for row in rows:
+        row.update(pipeline="cnn_cifar10", run_id="cnn-experiment", timestamp="2026-10-26")
+    rows[1]["quantization"] = "static_int8"
+    dynamic = {
+        **rows[1],
+        "variant": "dynamic_range",
+        "quantization": "dynamic_range",
+        "accuracy": 0.91,
+        "latency_ms_mean": 2.0,
+    }
+    selective = {
+        **rows[1],
+        "variant": "int8_except_depthwise",
+        "quantization": "selective_int8",
+        "accuracy": 0.89,
+        "latency_ms_mean": 3.0,
+    }
+    # Extra quantized variants precede the default INT8 row on purpose.
+    df = pd.DataFrame([rows[0], dynamic, selective, rows[1]])
+    summary = summarize(df)
+    assert set(summary["variant"]) == {
+        "fp32",
+        "int8",
+        "dynamic_range",
+        "int8_except_depthwise",
+    }
+    assert len({r["run_id"] for _, r in summary.iterrows()}) == 1
+    featured = _featured_pairs(df, "x86_64")
+    assert featured[0][2]["variant"] == "int8"
+    assert _paired(df, "x86_64").iloc[0]["q_lat"] == 5.0
+    assert "10.0 → 5.00 ms" in _readme_table(df, "x86_64")
