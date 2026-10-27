@@ -33,6 +33,7 @@ class Constraints:
     max_memory_mb: float | None = None
     latency_kind: LatencyKind = "model"
     objective: Objective = "latency"
+    require_paired_ci: bool = False
 
     def __post_init__(self) -> None:
         if self.latency_kind not in {"model", "prepared-input"}:
@@ -164,6 +165,15 @@ def recommend(
             if val is None:
                 reasons.append(f"unmeasured: {name}")
         accuracy = metrics["accuracy"]
+        if limits.require_paired_ci:
+            lower = _number(row, "accuracy_delta_ci95_low")
+            if lower is None:
+                reasons.append("unmeasured: paired accuracy CI (rerun the benchmark)")
+            elif -100 * lower > limits.max_accuracy_drop_pts + 1e-9:
+                reasons.append(
+                    f"paired 95% lower accuracy bound {lower * 100:+.2f} pts "
+                    f"exceeds allowed loss {limits.max_accuracy_drop_pts:g} pts"
+                )
         if accuracy is not None:
             loss_pts = (base_accuracy - accuracy) * 100
             if loss_pts > limits.max_accuracy_drop_pts + 1e-9:
@@ -235,6 +245,8 @@ def recommend(
         "historical": str(baseline["run_id"]).startswith("legacy-"),
         "note": (
             "Selection uses observed measurements from one native benchmark run. "
+            "Accuracy thresholds use observed point estimates by default; "
+            "require_paired_ci also checks the paired 95% lower bound. "
             "A single pass is not evidence of stable latency, and historical "
             "per-model accuracy intervals do not test paired accuracy loss. "
             "Results from other devices or unmeasured quantizers are excluded."
