@@ -67,9 +67,7 @@ def test_cnn_convert_dispatches_opt_in_variants(monkeypatch, tmp_path: Path) -> 
         monkeypatch.setattr(
             tflite,
             name,
-            lambda source, path, *a, _name=name, **k: fake_convert(
-                _name, source, path, *a, **k
-            ),
+            lambda source, path, *a, _name=name, **k: fake_convert(_name, source, path, *a, **k),
         )
 
     cfg = _opted_in()
@@ -86,7 +84,9 @@ def test_cnn_convert_dispatches_opt_in_variants(monkeypatch, tmp_path: Path) -> 
     assert all(v.path.exists() for v in variants)
 
 
-def test_cli_cnn_alternatives_apply_to_convert_and_benchmark(fake_pipelines, isolated_artifacts) -> None:
+def test_cli_cnn_alternatives_apply_to_convert_and_benchmark(
+    fake_pipelines, isolated_artifacts
+) -> None:
     assert main(["run", "cnn_cifar10", "--cnn-alternatives", "--smoke"]) == 0
     assert [kind for name, kind in fake_pipelines.calls if name == "cnn_cifar10"] == [
         "train",
