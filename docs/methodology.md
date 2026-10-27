@@ -16,7 +16,7 @@ records the same metrics in the same way for TFLite and ONNX Runtime.
 | **Agreement** | Share of those examples where the variant predicts the same label as its FP32 baseline. |
 | **Latency mean / p50 / p95 (ms)** | Wall-clock time of one model call on a single example. p95 shows tail behaviour the mean hides. |
 | **RSS delta (MB)** | How much the resident memory of a fresh process grows when it loads the model and runs it. |
-| **Peak RSS (MB)** | The highest resident memory that process reached, minus the level before the model was loaded. |
+| **Peak RSS (MB)** | The highest resident memory reached *after the runtime-import baseline*, minus that baseline. On Linux, the kernel high-water mark is reset first; a 5 ms RSS sampler is the fallback. |
 
 Every row is **self-describing**. It is stamped with `device` (the CPU model, or the
 `BSB_DEVICE` label), `arch`, `os`, `python`, `emulated` and the exact library versions,
@@ -37,6 +37,14 @@ same architecture.
   memory, then loads the model and runs it a few times. The growth is the model's own
   footprint. A separate process per variant also stops the second variant from reusing
   memory the first one freed.
+- **Peak RSS excludes earlier allocations.** The probe resets Linux's historical
+  resident-memory high-water mark by writing `5` to `/proc/self/clear_refs` after
+  importing the runtime and before loading the model. Where the reset is unavailable,
+  a 5 ms RSS sampler provides a best-effort peak and can miss brief spikes. The
+  previously committed ARM64 `peak_rss_mb` values (October 5, 2026) were measured
+  before this fix and are not valid estimates of model-loading peaks. They must be
+  regenerated before being cited; the README's memory figures use `rss_delta_mb`,
+  which is unaffected by this specific error.
 - **Warm-up runs.** The first few inferences pay one-off costs (lazy kernel setup,
   delegate creation, cache warming). The harness runs `warmup` untimed inferences before
   it starts timing.

@@ -7,9 +7,10 @@ benchmarked one after the other in the same process, the second one reuses memor
 the first one freed, so its number is understated.
 
 So each variant gets its own child process. The child imports the runtime first
-(that cost is the same for every variant and is excluded), records its RSS, loads
-the model, runs a few inferences, and reports how much the RSS grew and how high
-it peaked over that baseline.
+(that cost is the same for every variant and is excluded), records its RSS,
+loads the model and runs a few inferences. On Linux, the kernel peak-RSS counter
+is reset after imports to exclude older peaks. On other platforms (or when
+Linux blocks the reset), RSS is sampled while the model runs.
 
 :func:`measure_memory` runs this module as a script, in the form
 ``python -m byte_sized_brain.benchmark.memory <runtime> <model> <sample.npz> <repeats>``.
@@ -23,6 +24,7 @@ import json
 import subprocess
 import sys
 import tempfile
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -31,16 +33,61 @@ import psutil
 
 _MB = 1024**2
 _ARRAY_KEY = "__sample__"  # npz key used when the sample is a bare array (TFLite)
+_SAMPLE_INTERVAL_SECONDS = 0.005
 
 
-def _peak_rss_bytes(proc: psutil.Process) -> int:
-    """Highest RSS this process has reached so far."""
-    if sys.platform == "win32":
-        return int(proc.memory_info().peak_wset)
-    import resource
+def _reset_linux_peak_rss() -> bool:
+    """Reset VmHWM to current RSS, discarding peaks from earlier imports.
 
-    maxrss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    return int(maxrss if sys.platform == "darwin" else maxrss * 1024)  # macOS reports bytes
+    Linux exposes this through /proc/self/clear_refs (write 5). Some containers
+    restrict this interface; callers must then sample RSS instead of trusting
+    the historical process-wide high-water mark.
+    """
+    if not sys.platform.startswith("linux"):
+        return False
+    try:
+        Path("/proc/self/clear_refs").write_text("5\n", encoding="ascii")
+    except OSError:
+        return False
+    return True
+
+
+class _PeakRSSMonitor:
+    """Measure the RSS peak *after* the runtime-import baseline.
+
+    Linux offers an exact high-water mark after resetting it. On other systems,
+    and on restricted Linux containers, sample RSS periodically. Sampling can
+    miss very short-lived allocations, so it is a best-effort fallback.
+    """
+
+    def __init__(self, proc: psutil.Process) -> None:
+        self._proc = proc
+        self._peak_bytes = int(proc.memory_info().rss)
+        self._linux_hwm_reset = _reset_linux_peak_rss()
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+        if not self._linux_hwm_reset:
+            self._thread = threading.Thread(target=self._sample_rss, daemon=True)
+            self._thread.start()
+
+    def _sample_rss(self) -> None:
+        while not self._stop.wait(_SAMPLE_INTERVAL_SECONDS):
+            with contextlib.suppress(psutil.Error):
+                self._peak_bytes = max(self._peak_bytes, int(self._proc.memory_info().rss))
+
+    def stop(self) -> int:
+        """Finish sampling and return the highest RSS since the measurement began."""
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join()
+        self._peak_bytes = max(self._peak_bytes, int(self._proc.memory_info().rss))
+        if self._linux_hwm_reset:
+            import resource
+
+            self._peak_bytes = max(
+                self._peak_bytes, int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss) * 1024
+            )
+        return self._peak_bytes
 
 
 def _preload_runtime(runtime: str) -> None:
@@ -70,13 +117,17 @@ def _probe(runtime: str, model_path: str, sample_path: str, repeats: int) -> dic
     gc.collect()
     baseline = proc.memory_info().rss
 
-    runner: Any = TFLiteRunner(model_path) if runtime == "tflite" else OnnxRunner(model_path)
-    for _ in range(max(repeats, 1)):
-        runner.predict(sample)
+    monitor = _PeakRSSMonitor(proc)
+    try:
+        runner: Any = TFLiteRunner(model_path) if runtime == "tflite" else OnnxRunner(model_path)
+        for _ in range(max(repeats, 1)):
+            runner.predict(sample)
+    finally:
+        peak = monitor.stop()
 
     return {
         "rss_delta_mb": (proc.memory_info().rss - baseline) / _MB,
-        "peak_rss_mb": max(_peak_rss_bytes(proc) - baseline, 0) / _MB,
+        "peak_rss_mb": max(peak - baseline, 0) / _MB,
     }
 
 
