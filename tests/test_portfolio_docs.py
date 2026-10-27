@@ -13,6 +13,7 @@ PAGES = (
     Path("docs/index.md"),
     Path("docs/methodology.md"),
     Path("docs/reproducibility.md"),
+    Path("docs/recommender.md"),
     Path("docs/report.md"),
 )
 MARKDOWN_LINK = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
@@ -70,3 +71,4 @@ def test_quick_verification_avoids_training_and_includes_real_tests() -> None:
 def test_mkdocs_exposes_the_reproducibility_guide() -> None:
     config = (ROOT / "mkdocs.yml").read_text(encoding="utf-8")
     assert "Reproduce and verify: reproducibility.md" in config
+    assert "Choose a variant: recommender.md" in config

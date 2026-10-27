@@ -29,6 +29,7 @@ nav:
   - Home: index.md
   - Methodology: methodology.md
   - Reproduce and verify: reproducibility.md
+  - Choose a variant: recommender.md
   - Results: report.md
 
 markdown_extensions:

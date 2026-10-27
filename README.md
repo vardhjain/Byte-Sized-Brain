@@ -184,6 +184,32 @@ not be available in every version; dynamic-range is the stable fallback. The
 accuracy/size figures above are from the original ablation, **not** from a
 new end-to-end benchmark of these additional variants.
 
+## Choose the smallest or fastest acceptable model
+
+Benchmarks are more useful when they help answer a deployment decision.
+The **constraint-based recommender** filters *real, native benchmark rows*
+by accuracy loss, latency, disk size and RSS memory, then shows which
+measured variants satisfy the limits and which were rejected.
+
+```bash
+# No ML framework, model download or retraining is needed:
+bsb recommend ffn_mnist --max-size-mb 0.2 --max-accuracy-drop-pts 1
+bsb recommend cnn_cifar10 --max-size-mb 3 --max-accuracy-drop-pts 1
+```
+
+The historical MNIST results have a feasible INT8 model; the historical CNN
+FP32 model exceeds 3 MiB and the static INT8 variant loses too much
+accuracy, so the second command reports **no feasible model**. It never
+substitutes an unmeasured dynamic-range ablation result.
+
+Use `--objective size` or `--objective latency` to set the goal,
+`--arch aarch64` to choose a native ARM experiment, and `--json`
+for machine-readable output. For conservative paired-accuracy confidence
+bounds, use `--require-paired-ci` **after collecting a modern paired
+benchmark**; the historical CSVs lack those intervals.
+
+[Full options, selection algorithm and limitations](docs/recommender.md).
+
 ## Run it yourself
 
 **Fast verification, without downloading models or training anything:**

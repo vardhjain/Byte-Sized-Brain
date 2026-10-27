@@ -9,6 +9,7 @@ Usage::
     bsb convert   cnn_cifar10 --cnn-alternatives   # add 2 opt-in CNN variants
     bsb benchmark cnn_cifar10 --cnn-alternatives   # compare all 4
     bsb report                                  # aggregate CSVs -> docs/report.md
+    bsb recommend ffn_mnist --max-size-mb 0.2     # measured, constraint-aware model choice
     bsb demo      <distilbert_imdb|rnn_imdb> [TEXT ...] [--smoke]
     bsb info                                    # system + library versions
     bsb list                                    # available pipelines
@@ -22,6 +23,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
 from typing import Any
 
 from . import __version__
@@ -141,6 +143,59 @@ def cmd_report(_: argparse.Namespace) -> int:
     return 0 if out else 1
 
 
+def cmd_recommend(args: argparse.Namespace) -> int:
+    from .recommend import Constraints, recommend_from_results
+
+    constraints = Constraints(
+        max_accuracy_drop_pts=args.max_accuracy_drop_pts,
+        min_accuracy=args.min_accuracy,
+        max_size_mb=args.max_size_mb,
+        max_latency_ms=args.max_latency_ms,
+        max_p95_ms=args.max_p95_ms,
+        max_memory_mb=args.max_memory_mb,
+        latency_kind=args.latency_kind,
+        objective=args.objective,
+        require_paired_ci=args.require_paired_ci,
+    )
+    try:
+        outcome = recommend_from_results(
+            args.pipeline,
+            results_dir=args.results_dir,
+            arch=args.arch,
+            device=args.device,
+            run_id=args.run_id,
+            constraints=constraints,
+        )
+    except ValueError as exc:
+        log.error("recommend failed: %s", exc)
+        return 1
+    if args.json:
+        print(json.dumps(outcome, indent=2, sort_keys=True))
+    else:
+        print(
+            f"Measured experiment: {outcome['pipeline']} on {outcome['arch']} "
+            f"({outcome['device']}) | run_id={outcome['run_id']}"
+        )
+        print(f"Objective: minimize/maximize {args.objective} | latency: {args.latency_kind}")
+        for choice in outcome["candidates"]:
+            label = "FEASIBLE" if choice["feasible"] else "REJECTED"
+            reason = "; ".join(choice["reasons"])
+            print(
+                f"  {choice['variant']:<24} {label:<8} "
+                f"acc={choice['accuracy']} size={choice['size_mb']} MiB "
+                f"mean={choice['latency_mean_ms']}ms "
+                f"p95={choice['latency_p95_ms']}ms "
+                f"RSS={choice['memory_mb']}MiB" + (f" | {reason}" if reason else "")
+            )
+        if outcome["recommended_variant"]:
+            print(f"Recommendation: {outcome['recommended_variant']}")
+            print("Feasible Pareto variants: " + ", ".join(outcome["pareto_variants"]))
+        else:
+            print("No measured variant satisfies all constraints. No recommendation made.")
+        print(outcome["note"])
+    return 0 if outcome["recommended_variant"] else 2
+
+
 def cmd_demo(args: argparse.Namespace) -> int:
     from .demo import format_rows, run_demo
 
@@ -191,6 +246,32 @@ def main(argv: list[str] | None = None) -> int:
             )
 
     sub.add_parser("report", help="aggregate CSVs into docs/report.md + charts")
+    recommend = sub.add_parser(
+        "recommend", help="choose a benchmarked variant under deployment constraints"
+    )
+    recommend.add_argument("pipeline", choices=all_names())
+    recommend.add_argument("--results-dir", type=Path, default=None)
+    recommend.add_argument("--arch", default="x86_64")
+    recommend.add_argument("--device", default=None, help="exact CPU label, when needed")
+    recommend.add_argument("--run-id", default=None, help="use an explicit paired experiment")
+    recommend.add_argument(
+        "--max-accuracy-drop-pts", type=float, default=1.0, help="default: 1 percentage point"
+    )
+    recommend.add_argument("--min-accuracy", type=float, default=None, help="fraction, 0..1")
+    recommend.add_argument("--max-size-mb", type=float, default=None)
+    recommend.add_argument("--max-latency-ms", type=float, default=None)
+    recommend.add_argument("--max-p95-ms", type=float, default=None)
+    recommend.add_argument("--max-memory-mb", type=float, default=None)
+    recommend.add_argument("--latency-kind", choices=["model", "prepared-input"], default="model")
+    recommend.add_argument(
+        "--objective", choices=["latency", "size", "memory", "accuracy"], default="latency"
+    )
+    recommend.add_argument(
+        "--require-paired-ci",
+        action="store_true",
+        help="require and respect paired 95% accuracy lower bounds (unavailable for legacy runs)",
+    )
+    recommend.add_argument("--json", action="store_true", help="machine-readable audit output")
     sub.add_parser("info", help="print system + library versions")
     sub.add_parser("list", help="list available pipelines")
 
@@ -210,6 +291,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_list(args)
     if args.command == "report":
         return cmd_report(args)
+    if args.command == "recommend":
+        return cmd_recommend(args)
     if args.command == "demo":
         return cmd_demo(args)
 
