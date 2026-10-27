@@ -28,6 +28,7 @@ theme:
 nav:
   - Home: index.md
   - Methodology: methodology.md
+  - Reproduce and verify: reproducibility.md
   - Results: report.md
 
 markdown_extensions:

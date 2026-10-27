@@ -14,24 +14,29 @@ size, accuracy, speed and memory the same way before and after.
 
 ![What 8-bit quantization changed, model by model](images/results_dashboard.png)
 
-Every model came out 69 to 75 percent smaller. Three of the four kept their accuracy,
-with the largest change being 3 of 500 test reviews. The MobileNetV2 photo classifier is
+Every model came out 69 to 75 percent smaller. Three of the four changed by
+no more than 0.6 accuracy points, though the historical data do not include
+paired uncertainty estimates. The MobileNetV2 photo classifier is
 the exception. It dropped 17 points, and an ablation traced the loss to 8-bit
 activations in its depthwise layers, not to its weights. Speed depended on the model.
 On an x86 laptop DistilBERT ran about 1.8 times faster and the photo classifier no
 faster at all. On an ARM64 server CPU every quantized model was faster, up to 3.6
-times.
+times. Those historical models were separately trained, not identical weights
+benchmarked on both machines.
 
-See the [full results](report.md) for the per-model breakdown, and the
-[methodology](methodology.md) for exactly how every number is measured and what its
-limits are.
+See the [full results](report.md) for the per-model breakdown, the
+[methodology](methodology.md) for measurement boundaries, and
+[Reproduce and verify](reproducibility.md) for no-training checks and controlled
+benchmark commands.
 
 ## What it covers
 
 - Static INT8 with real calibration data and dynamic INT8, across TensorFlow Lite and
   ONNX Runtime.
 - Four models, from a tiny digit reader to a DistilBERT language model.
-- One benchmark harness that times only the model call and measures each model's memory
-  in a fresh process.
-- Config files, fixed seeds, pinned dependencies, a command-line tool, tests, and CI on
-  both x86 and ARM64.
+- One benchmark harness that measures **both** model-only latency and runtime
+  input-preparation-inclusive latency; memory uses a fresh process per model.
+- Config files, fixed seeds, pinned dependencies, paired accuracy statistics,
+  repeatable latency passes, and CI on x86 and native ARM64.
+- An opt-in workflow for measuring **identical** SHA-256 verified artifacts on both
+  CPU architectures. It has not yet replaced the historical benchmark numbers.
