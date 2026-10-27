@@ -55,6 +55,7 @@ RESULT_COLUMNS = [
     "mcnemar_pvalue",
     "fp32_only_correct",
     "variant_only_correct",
+    "model_sha256",
 ]
 
 
@@ -96,6 +97,7 @@ def build_row(
         "variant_only_correct": int(metrics["variant_only_correct"])
         if "variant_only_correct" in metrics
         else "",
+        "model_sha256": metrics.get("model_sha256", ""),
         "pipeline": cfg.name,
         "modality": cfg.modality,
         "framework": cfg.framework,

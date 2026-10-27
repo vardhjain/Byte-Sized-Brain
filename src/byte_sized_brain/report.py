@@ -162,6 +162,9 @@ def summarize(df: pd.DataFrame) -> pd.DataFrame:
                 "pipeline": r["pipeline"],
                 "run_id": r["run_id"],
                 "device": r.get("device", ""),
+                "model_sha256": r.get("model_sha256", "")
+                if pd.notna(r.get("model_sha256"))
+                else "",
                 "modality": r["modality"],
                 "runtime": r["runtime"],
                 "variant": r["variant"],

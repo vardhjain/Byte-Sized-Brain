@@ -135,13 +135,37 @@ Flex delegate.
 
 ## 3. Running on ARM64
 
-The committed results cover x86 and native ARM64. The ARM64 rows were produced by the
-"ARM64 benchmark" workflow, which runs `bsb run all` with the full configs on a
-GitHub-hosted ARM64 runner (Arm Neoverse-N2, 4 vCPUs) and uploads the result files.
-Each pipeline is trained on the runner itself, so the ARM models are separately
-trained copies and their accuracies differ slightly from the x86 ones. A hosted
+**Historical results:** The committed October 2026 x86 and native ARM64 rows
+were produced from separately trained models. Their model graphs and weights
+are **not confirmed byte-identical**, so differences in training are a confound
+when comparing their absolute accuracy or speed across processors. A hosted
 runner is a shared virtual machine, so its timings are noisier than a dedicated
-machine's.
+device.
+
+**New reproducible workflow:** The manual GitHub Actions workflow
+[`Cross-hardware benchmark (identical artifacts)`](https://github.com/vardhjain/Byte-Sized-Brain/actions/workflows/arm-benchmark.yml)
+trains and converts one source model on x86 only, packages the exact FP32 and
+quantized inference files (plus the DistilBERT tokenizer), and uploads a SHA-256
+manifest. Native x86 and ARM64 runners download and **verify** the same bytes,
+then execute `bsb benchmark` only, on the same dataset selection and pinned
+software versions. Their result rows contain `model_sha256`. A final job
+compares those hashes with each other and against the uploaded manifest, and
+requires equal evaluation sample counts. If either checksum differs the
+workflow fails instead of publishing a misleading comparison.
+
+Start it from **Actions → Cross-hardware benchmark (identical artifacts) →
+Run workflow**. It defaults to `ffn_mnist`, the least expensive model; select
+one other pipeline or explicitly choose `all` to run all four. This workflow is
+manual because training full models can consume substantial runner time; usage
+is subject to GitHub Actions minutes and artifact storage limits on the account.
+
+Outputs are `results-x86_64` and `results-aarch64` download artifacts (with
+a copy of `model-manifest.json`), retained for 30 days. The intermediate
+models are kept for 7 days. New results are **not** committed automatically
+or silently substituted into the published README. Review and import them
+explicitly before updating the report. A different CPU can legitimately
+produce small numerical prediction differences even with identical model bytes,
+so the final gate tests *artifact identity*, not identical accuracy.
 
 Beyond that workflow, the project offers three more ways to exercise ARM64.
 
@@ -198,6 +222,10 @@ A newer incomplete pair is skipped. The full history remains in the CSV and deta
 - **Pinned environment.** `requirements.txt` pins the versions behind the committed
   results (Python 3.11 or 3.12), and CI installs against those pins. Each CSV row also
   carries its own `lib_versions`.
+- **Model provenance.** New result rows carry `model_sha256`, computed from the exact
+  benchmarked TFLite or ONNX file. The manual cross-hardware workflow additionally
+  verifies a bundle manifest before running either architecture and enforces SHA-256
+  identity in a final comparison job. Historical rows have blank model hashes.
 - **Smoke versus full runs.** Every config has a `smoke:` block. `--smoke` runs one
   epoch on a small subset and keeps its models in `artifacts/smoke/` and its results in
   `benchmarks/results/smoke/`, so it never overwrites a full run.
