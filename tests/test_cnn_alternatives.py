@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -23,15 +22,22 @@ def test_cnn_opt_in_has_four_distinct_named_artifacts(tmp_path: Path) -> None:
     pipeline = CNNCifar10()
     paths = Paths("cnn_cifar10", root=tmp_path)
     assert [v.name for v in pipeline.variants(load_config("cnn_cifar10"), paths)] == [
-        "fp32", "int8"
+        "fp32",
+        "int8",
     ]
 
     variants = pipeline.variants(_opted_in(), paths)
     assert [v.name for v in variants] == [
-        "fp32", "int8", "dynamic_range", "int8_except_depthwise"
+        "fp32",
+        "int8",
+        "dynamic_range",
+        "int8_except_depthwise",
     ]
     assert [v.quantization for v in variants] == [
-        "none", "static_int8", "dynamic_range", "selective_int8"
+        "none",
+        "static_int8",
+        "dynamic_range",
+        "selective_int8",
     ]
     assert len({v.path for v in variants}) == len(variants)
     assert all(v.runtime == "tflite" for v in variants)
@@ -71,7 +77,10 @@ def test_cnn_convert_dispatches_opt_in_variants(monkeypatch, tmp_path: Path) -> 
     variants = CNNCifar10().convert(cfg, paths)
 
     assert [kind for kind, _ in calls] == [
-        "to_fp32", "to_static_int8", "to_dynamic_range", "to_int8_except_depthwise"
+        "to_fp32",
+        "to_static_int8",
+        "to_dynamic_range",
+        "to_int8_except_depthwise",
     ]
     assert {v.path for v in variants} == {paths.tflite(v.name) for v in variants}
     assert all(v.path.exists() for v in variants)
@@ -80,7 +89,9 @@ def test_cnn_convert_dispatches_opt_in_variants(monkeypatch, tmp_path: Path) -> 
 def test_cli_cnn_alternatives_apply_to_convert_and_benchmark(fake_pipelines, isolated_artifacts) -> None:
     assert main(["run", "cnn_cifar10", "--cnn-alternatives", "--smoke"]) == 0
     assert [kind for name, kind in fake_pipelines.calls if name == "cnn_cifar10"] == [
-        "train", "convert", "benchmark"
+        "train",
+        "convert",
+        "benchmark",
     ]
     assert all(
         c.convert.cnn_alternatives == ["dynamic_range", "int8_except_depthwise"]
