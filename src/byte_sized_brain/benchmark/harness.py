@@ -59,7 +59,7 @@ def benchmark_inference(
         predictions.append(decision_fn(out))
 
     correct = sum(p == int(labels[i]) for i, p in enumerate(predictions))
-    result = {
+    result: dict[str, Any] = {
         "accuracy": correct / n,
         "predictions": predictions,
         "latency_ms_mean": float(latencies.mean()),
