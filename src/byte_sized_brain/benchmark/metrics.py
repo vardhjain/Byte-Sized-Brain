@@ -83,17 +83,13 @@ def build_row(
     row: dict[str, Any] = {
         "timestamp": timestamp or utc_timestamp(),
         "run_id": run_id or uuid4().hex,
-        "latency_passes": int(metrics["latency_passes"])
-        if "latency_passes" in metrics
-        else "",
+        "latency_passes": int(metrics["latency_passes"]) if "latency_passes" in metrics else "",
         "latency_pass_std_ms": _optional_float(metrics, "latency_pass_std_ms", 4),
         "latency_ms_ci95_low": _optional_float(metrics, "latency_ms_ci95_low", 4),
         "latency_ms_ci95_high": _optional_float(metrics, "latency_ms_ci95_high", 4),
         "accuracy_delta_ci95_low": _optional_float(metrics, "accuracy_delta_ci95_low", 4),
         "accuracy_delta_ci95_high": _optional_float(metrics, "accuracy_delta_ci95_high", 4),
-        "mcnemar_pvalue": float(metrics["mcnemar_pvalue"])
-        if "mcnemar_pvalue" in metrics
-        else "",
+        "mcnemar_pvalue": float(metrics["mcnemar_pvalue"]) if "mcnemar_pvalue" in metrics else "",
         "fp32_only_correct": int(metrics["fp32_only_correct"])
         if "fp32_only_correct" in metrics
         else "",
