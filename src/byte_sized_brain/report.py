@@ -130,6 +130,19 @@ def headline_arch(df: pd.DataFrame) -> str:
     return "x86_64" if "x86_64" in top else top[0]
 
 
+def _optional_number(row: pd.Series, name: str, *, decimals: int = 4) -> float | str:
+    value = row.get(name)
+    return round(float(value), decimals) if pd.notna(value) and value != "" else ""
+
+
+def _paired_delta_interval(row: pd.Series) -> str:
+    low = _optional_number(row, "accuracy_delta_ci95_low")
+    high = _optional_number(row, "accuracy_delta_ci95_high")
+    if low == "" or high == "":
+        return ""
+    return f"[{float(low) * 100:+.1f}, {float(high) * 100:+.1f}] pts"
+
+
 def summarize(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
@@ -165,6 +178,16 @@ def summarize(df: pd.DataFrame) -> pd.DataFrame:
                 if "agreement" in r and pd.notna(r["agreement"])
                 else "",
                 "latency_ms_mean": round(r["latency_ms_mean"], 3),
+                "latency_passes": _optional_number(r, "latency_passes", decimals=0),
+                "latency_pass_std_ms": _optional_number(r, "latency_pass_std_ms"),
+                "latency_ms_ci95_low": _optional_number(r, "latency_ms_ci95_low"),
+                "latency_ms_ci95_high": _optional_number(r, "latency_ms_ci95_high"),
+                "paired_accuracy_delta_ci95": _paired_delta_interval(r),
+                "mcnemar_pvalue": _optional_number(r, "mcnemar_pvalue", decimals=9),
+                "fp32_only_correct": _optional_number(r, "fp32_only_correct", decimals=0),
+                "variant_only_correct": _optional_number(
+                    r, "variant_only_correct", decimals=0
+                ),
                 "size_reduction_%": round(size_red, 1),
                 "latency_speedup_x": round(lat_speedup, 2),
                 "accuracy_delta": round(acc_delta, 4),
@@ -398,10 +421,18 @@ def generate_report(results_dir: Path | None = None) -> Path | None:
         "`latency_speedup_x` is FP32 time divided by variant time, so above 1 means "
         "faster and below 1 means slower. `accuracy_delta` is the change in accuracy as "
         "a fraction (-0.173 means 17.3 percentage points lower).",
-        "- `accuracy_ci95` is the half-width of the 95 percent Wilson interval for the "
-        "accuracy at that sample size, so a difference smaller than it is within noise. "
-        "`agreement` is the share of test examples where the variant gives the same "
-        "answer as its FP32 baseline.",
+        "- `accuracy_ci95` is the per-model 95 percent Wilson half-width; **do not "
+        "use it to test differences between paired models**. "
+        "`paired_accuracy_delta_ci95` is a seeded bootstrap interval in percentage "
+        "points using the same held-out examples for FP32 and the variant. "
+        "`mcnemar_pvalue` is McNemar's exact two-sided test on correctness changes. "
+        "`fp32_only_correct` / `variant_only_correct` count the discordant examples. "
+        "`agreement` is the share of examples with the same predicted label.",
+        "- `latency_passes` counts complete, independently repeated timing passes. "
+        "`latency_ms_ci95_low/high` bootstrap the mean latency per pass; "
+        "`latency_pass_std_ms` is the sample standard deviation of those means. "
+        "These are blank when fewer than two passes were collected, or for legacy CSVs. "
+        "Pass-to-pass variation describes this machine and benchmark session only.",
         "- All three are computed against the FP32 baseline within the exact same run_id, "
         "never just the same architecture. Sizes are in MiB (1,048,576 bytes) and latency is the mean "
         "time for one input, in milliseconds.",
