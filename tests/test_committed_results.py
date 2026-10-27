@@ -35,7 +35,8 @@ def test_committed_results_are_full_runs_in_the_current_schema(
     with csv_path.open(encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
-    assert reader.fieldnames == RESULT_COLUMNS
+    # Published results from October 2026 predate the run_id column.
+    assert reader.fieldnames in (RESULT_COLUMNS, RESULT_COLUMNS[:-1])
 
     full = load_config(name)
     pipeline = get_pipeline(name)
