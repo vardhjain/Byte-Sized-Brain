@@ -13,6 +13,7 @@ from uuid import uuid4
 import numpy as np
 
 from ..benchmark import OnnxRunner, TFLiteRunner, benchmark_inference, build_row
+from ..benchmark.bundle import file_sha256
 from ..benchmark.memory import measure_memory
 from ..benchmark.statistics import paired_accuracy, repeated_latency
 from ..utils import get_logger, size_mb
@@ -142,6 +143,7 @@ def benchmark_variants(
         # Footprint of this variant alone, measured in a fresh process.
         metrics.update(measure_memory(v.runtime, v.path, samples[0]))
         mb = size_mb(v.path)
+        metrics["model_sha256"] = file_sha256(Path(v.path))
         rows.append(
             build_row(
                 cfg,
