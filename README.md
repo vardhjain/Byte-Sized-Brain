@@ -137,6 +137,30 @@ this model on a CPU. The full experiment is one script,
 [`benchmarks/results/ablations/`](benchmarks/results/ablations/cnn_int8_ablation.csv),
 and the [methodology](docs/methodology.md#5-limitations) discusses it further.
 
+### Benchmark the alternatives with the shared harness
+
+The two most promising strategies are now opt-in variants of the normal CNN pipeline:
+
+```bash
+bsb train cnn_cifar10                     # once, or use an existing trained model
+bsb convert cnn_cifar10 --cnn-alternatives
+bsb benchmark cnn_cifar10 --cnn-alternatives
+bsb report                                # compare all variants in docs/report.md
+```
+
+This benchmarks four versions of **the same trained model and test images**:
+`fp32`, `int8`, `dynamic_range` (INT8 weights, float activations), and
+`int8_except_depthwise` (selective INT8 with depthwise layers in float).
+The full-size, accuracy, mean/p50/p95 latency, and RSS measurements go into the
+same run ID, so the detailed report can compare them without mixing devices.
+The headline table deliberately keeps the original FP32 vs. static INT8 comparison.
+
+These variants are optional, so `bsb run all` and CI behave as before.
+Selective depthwise quantization uses an **experimental TensorFlow API** and may
+not be available in every version; dynamic-range is the stable fallback. The
+accuracy/size figures above are from the original ablation, **not** from a
+new end-to-end benchmark of these additional variants.
+
 ## Run it yourself
 
 You need Python 3.11 or 3.12. The pinned install includes both TensorFlow and PyTorch,

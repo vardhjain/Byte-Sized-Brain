@@ -1,4 +1,4 @@
-"""CNN (MobileNetV2) on CIFAR-10: FP32 vs static INT8 TFLite.
+"""CNN (MobileNetV2) on CIFAR-10: FP32, static INT8, and opt-in alternatives.
 
 Two-stage training: train the head with the backbone frozen, then optionally
 unfreeze and fine-tune at a lower learning rate (``fine_tune_epochs``). The
@@ -74,10 +74,14 @@ class CNNCifar10(Pipeline):
         return float(acc)
 
     def variants(self, cfg: PipelineConfig, paths: Paths) -> list[Variant]:
-        return [
+        variants = [
             Variant("fp32", "none", "tflite", paths.tflite("fp32")),
             Variant("int8", self.quantization, "tflite", paths.tflite("int8")),
         ]
+        for name in cfg.convert.cnn_alternatives:
+            method = "dynamic_range" if name == "dynamic_range" else "selective_int8"
+            variants.append(Variant(name, method, "tflite", paths.tflite(name)))
+        return variants
 
     def convert(self, cfg: PipelineConfig, paths: Paths) -> list[Variant]:
         from ..convert import tflite
@@ -93,6 +97,15 @@ class CNNCifar10(Pipeline):
             representative_dataset(x_rep, cfg.convert.rep_samples),
             int8_io=cfg.convert.int8_io,
         )
+        for name in cfg.convert.cnn_alternatives:
+            if name == "dynamic_range":
+                tflite.to_dynamic_range(paths.fp32_source, paths.tflite(name))
+            elif name == "int8_except_depthwise":
+                tflite.to_int8_except_depthwise(
+                    paths.fp32_source,
+                    paths.tflite(name),
+                    representative_dataset(x_rep, cfg.convert.rep_samples),
+                )
         return self.variants(cfg, paths)
 
     def benchmark(self, cfg: PipelineConfig, paths: Paths) -> list[dict[str, Any]]:

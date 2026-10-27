@@ -61,3 +61,36 @@ def to_dynamic_range(saved_model_dir: str | Path, out_path: str | Path) -> Path:
     # Optimize.DEFAULT with no representative dataset == dynamic-range quant.
     conv.optimizations = [tf.lite.Optimize.DEFAULT]
     return _write(conv.convert(), out_path)
+
+
+def to_int8_except_depthwise(
+    saved_model_dir: str | Path,
+    out_path: str | Path,
+    representative_dataset: Callable[[], Iterator[list]],
+) -> Path:
+    """Quantize supported ops but keep depthwise convolutions in float.
+
+    The experimental TensorFlow QuantizationDebugger can selectively denylist
+    an operator type. This is intentionally opt-in: its API is experimental
+    and availability may vary with TensorFlow versions. A float I/O signature
+    avoids falsely promising fully-integer execution.
+    """
+    import tensorflow as tf
+
+    experimental = tf.lite.experimental
+    if not all(
+        hasattr(experimental, name) for name in ("QuantizationDebugOptions", "QuantizationDebugger")
+    ):
+        raise RuntimeError(
+            "Selective depthwise quantization requires TensorFlow's experimental "
+            "QuantizationDebugger. Use dynamic_range or static INT8 instead."
+        )
+
+    conv = _new_converter(saved_model_dir)
+    conv.optimizations = [tf.lite.Optimize.DEFAULT]
+    conv.representative_dataset = representative_dataset
+    options = experimental.QuantizationDebugOptions(denylisted_ops=["DEPTHWISE_CONV_2D"])
+    debugger = experimental.QuantizationDebugger(
+        converter=conv, debug_dataset=representative_dataset, debug_options=options
+    )
+    return _write(debugger.get_nondebug_quantized_model(), out_path)

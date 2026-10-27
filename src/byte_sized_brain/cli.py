@@ -6,6 +6,8 @@ Usage::
     bsb convert   <pipeline|all> [--smoke]
     bsb benchmark <pipeline|all> [--smoke] [--num-samples N]
     bsb run       <pipeline|all> [--smoke]      # train + convert + benchmark
+    bsb convert   cnn_cifar10 --cnn-alternatives   # add 2 opt-in CNN variants
+    bsb benchmark cnn_cifar10 --cnn-alternatives   # compare all 4
     bsb report                                  # aggregate CSVs -> docs/report.md
     bsb demo      <distilbert_imdb|rnn_imdb> [TEXT ...] [--smoke]
     bsb info                                    # system + library versions
@@ -44,6 +46,10 @@ def _load(pipeline: str, args: argparse.Namespace) -> PipelineConfig:
         )
     if getattr(args, "num_samples", None) is not None:
         cfg.benchmark.num_samples = args.num_samples  # validated, must be >= 1
+    if getattr(args, "cnn_alternatives", False):
+        if cfg.name != "cnn_cifar10":
+            raise ValueError("--cnn-alternatives applies only to cnn_cifar10")
+        cfg.convert.cnn_alternatives = ["dynamic_range", "int8_except_depthwise"]
     expected = get_pipeline(cfg.name).quantization
     if cfg.convert.quantization != expected:
         raise ValueError(
@@ -165,6 +171,12 @@ def main(argv: list[str] | None = None) -> int:
             help="tiny, fast end-to-end run (kept under artifacts/smoke and results/smoke)",
         )
         sp.add_argument("--config", default=None, help="explicit config path (one pipeline only)")
+        if name in {"convert", "benchmark", "run"}:
+            sp.add_argument(
+                "--cnn-alternatives",
+                action="store_true",
+                help="CNN only: include dynamic-range and depthwise-float variants (experimental)",
+            )
         if name in {"benchmark", "run"}:
             sp.add_argument(
                 "--num-samples", type=int, default=None, help="override eval sample count"

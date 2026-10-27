@@ -108,3 +108,39 @@ def test_out_of_range_values_are_rejected(section: str, field: str, value: float
             model="m",
             **{section: {field: value}},
         )
+
+
+@pytest.mark.parametrize(
+    "extras",
+    [
+        ["dynamic_range", "dynamic_range"],
+        ["int8_except_depthwise", "int8_except_depthwise"],
+        ["unrecognized_quantizer"],
+    ],
+)
+def test_invalid_cnn_alternatives_are_rejected(extras: list[str]) -> None:
+    with pytest.raises(ValidationError):
+        PipelineConfig(
+            name="cnn_cifar10",
+            framework="tensorflow",
+            modality="vision",
+            dataset="cifar10",
+            model="mobilenetv2",
+            convert={"cnn_alternatives": extras},
+        )
+
+
+def test_other_pipelines_cannot_claim_cnn_alternatives() -> None:
+    with pytest.raises(ValidationError, match="only supported by cnn_cifar10"):
+        PipelineConfig(
+            name="ffn_mnist",
+            framework="tensorflow",
+            modality="vision",
+            dataset="mnist",
+            model="ffn",
+            convert={"cnn_alternatives": ["dynamic_range"]},
+        )
+
+
+def test_cnn_alternatives_default_to_none() -> None:
+    assert load_config("cnn_cifar10").convert.cnn_alternatives == []

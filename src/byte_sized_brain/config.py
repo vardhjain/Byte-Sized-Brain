@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 Framework = Literal["tensorflow", "pytorch"]
 Modality = Literal["vision", "sequence", "nlp"]
@@ -57,6 +57,10 @@ class ConvertConfig(_Base):
     quantization: Quantization = "static_int8"
     rep_samples: int = Field(default=100, ge=1)  # representative-dataset size for static PTQ
     int8_io: bool = True  # int8 input/output tensors for static PTQ
+    # Opt-in CNN comparisons only. Leave empty to reproduce the published FP32/INT8 pair.
+    cnn_alternatives: list[Literal["dynamic_range", "int8_except_depthwise"]] = Field(
+        default_factory=list
+    )
     opset: int = 14  # ONNX opset (DistilBERT export)
 
 
@@ -76,6 +80,15 @@ class PipelineConfig(_Base):
     train: TrainConfig = Field(default_factory=TrainConfig)
     convert: ConvertConfig = Field(default_factory=ConvertConfig)
     benchmark: BenchmarkConfig = Field(default_factory=BenchmarkConfig)
+
+    @model_validator(mode="after")
+    def validate_cnn_alternatives(self) -> PipelineConfig:
+        alternatives = self.convert.cnn_alternatives
+        if alternatives and self.name != "cnn_cifar10":
+            raise ValueError("convert.cnn_alternatives is only supported by cnn_cifar10")
+        if len(set(alternatives)) != len(alternatives):
+            raise ValueError("convert.cnn_alternatives must not contain duplicates")
+        return self
 
 
 # ─────────────────────────────────────────────────────────────────────────

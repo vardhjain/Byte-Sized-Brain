@@ -98,7 +98,11 @@ def _featured_pairs(df: pd.DataFrame, arch: str) -> list[tuple[str, pd.Series, p
     for p in order:
         candidates = []
         for run_id, sub in native[native["pipeline"] == p].groupby("run_id", sort=False):
-            fp, q = sub[sub["variant"] == "fp32"], sub[sub["variant"] != "fp32"]
+            fp = sub[sub["variant"] == "fp32"]
+            # Preserve the headline's published static INT8 comparison even
+            # when a run also includes dynamic-range and selective variants.
+            preferred = "int8" if p == "cnn_cifar10" else None
+            q = sub[sub["variant"] == preferred] if preferred else sub[sub["variant"] != "fp32"]
             if fp.empty or q.empty:
                 continue
             latest = max(sub["timestamp"].astype(str)) if "timestamp" in sub else ""

@@ -105,3 +105,39 @@ def test_int8_input_saturates_instead_of_wrapping(tmp_path):
     far_out = runner.predict(np.full(4, 1e6, dtype=np.float32))
     # A wrapped value would land somewhere arbitrary; a saturated one equals the max input.
     assert np.array_equal(in_range, far_out)
+
+
+def test_cnn_optional_quantizers_run_toy_depthwise_model(tmp_path):
+    """Exercise both real TFLite conversion paths without dataset downloads."""
+    pytest.importorskip("tensorflow")
+    from tensorflow import keras
+
+    from byte_sized_brain.benchmark import TFLiteRunner
+    from byte_sized_brain.convert import tflite
+    from byte_sized_brain.data import representative_dataset
+    from byte_sized_brain.pipelines.base import export_savedmodel
+
+    model = keras.Sequential(
+        [
+            keras.layers.Input(shape=(16, 16, 3)),
+            keras.layers.DepthwiseConv2D(3, padding="same", activation="relu"),
+            keras.layers.Conv2D(4, 1, activation="relu"),
+            keras.layers.GlobalAveragePooling2D(),
+            keras.layers.Dense(2, activation="softmax"),
+        ]
+    )
+    saved = export_savedmodel(model, tmp_path / "saved")
+    calibration = np.random.default_rng(17).uniform(-1, 1, (10, 16, 16, 3)).astype("float32")
+
+    dynamic = tflite.to_dynamic_range(saved, tmp_path / "cnn_dynamic_range.tflite")
+    selective = tflite.to_int8_except_depthwise(
+        saved,
+        tmp_path / "cnn_int8_except_depthwise.tflite",
+        representative_dataset(calibration, 10),
+    )
+    for artifact in (dynamic, selective):
+        assert artifact.stat().st_size > 0
+        runner = TFLiteRunner(artifact)
+        prediction = runner.predict(calibration[0])
+        assert prediction.shape[-1] == 2
+        assert np.isfinite(prediction).all()
