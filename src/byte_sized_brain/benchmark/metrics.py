@@ -143,7 +143,11 @@ def write_results(rows: list[dict[str, Any]], csv_path: str | Path) -> Path:
                     f"{out} is not a results file this version can merge into "
                     f"(missing columns: {sorted(absent)}). Move it aside and rerun."
                 )
-            kept = [{**r, "run_id": effective_run_id(r)} for r in reader if result_key(r) not in replaced]
+            kept = [
+                {**r, "run_id": effective_run_id(r)}
+                for r in reader
+                if result_key(r) not in replaced
+            ]
     with out.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(
             f, fieldnames=RESULT_COLUMNS, extrasaction="ignore", lineterminator="\n"
