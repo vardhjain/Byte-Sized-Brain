@@ -187,9 +187,7 @@ def summarize(df: pd.DataFrame) -> pd.DataFrame:
                 if pd.notna(r.get("mcnemar_pvalue")) and r.get("mcnemar_pvalue") != ""
                 else "",
                 "fp32_only_correct": _optional_number(r, "fp32_only_correct", decimals=0),
-                "variant_only_correct": _optional_number(
-                    r, "variant_only_correct", decimals=0
-                ),
+                "variant_only_correct": _optional_number(r, "variant_only_correct", decimals=0),
                 "size_reduction_%": round(size_red, 1),
                 "latency_speedup_x": round(lat_speedup, 2),
                 "accuracy_delta": round(acc_delta, 4),
