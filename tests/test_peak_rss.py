@@ -21,9 +21,10 @@ def test_sampling_fallback_records_post_baseline_peak(monkeypatch: pytest.Monkey
         sampled_peak = threading.Event()
 
         def memory_info(self):
-            if self.rss == 300:
+            value = self.rss
+            if value == 300:
                 self.sampled_peak.set()
-            return SimpleNamespace(rss=self.rss)
+            return SimpleNamespace(rss=value)
 
     proc = FakeProcess()
     monitor = memory._PeakRSSMonitor(proc)
