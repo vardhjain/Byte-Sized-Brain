@@ -56,9 +56,11 @@ def _with_run_ids(df: pd.DataFrame) -> pd.DataFrame:
     """Make both new and historical result frames safe to pair by run ID."""
     if df.empty:
         return df
-    if "run_id" not in df.columns or df["run_id"].isna().any() or (
-        df["run_id"].astype(str).str.strip() == ""
-    ).any():
+    if (
+        "run_id" not in df.columns
+        or df["run_id"].isna().any()
+        or (df["run_id"].astype(str).str.strip() == "").any()
+    ):
         df = df.copy()
         df["run_id"] = df.apply(lambda row: effective_run_id(row.to_dict()), axis=1)
     return df
