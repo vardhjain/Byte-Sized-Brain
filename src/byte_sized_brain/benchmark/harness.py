@@ -4,10 +4,13 @@ Given a ``predict_fn`` (prepared sample to raw output) and a ``decision_fn`` (ra
 output to predicted label), it measures, identically across runtimes, the accuracy
 over ``num_samples`` and the per-inference latency (mean, p50 and p95, in ms).
 
-Only the model call is timed. An optional ``prepare_fn`` converts each raw sample
-into the tensor the model takes (for example the float to INT8 input quantization
-of a full-integer model) and runs *before* the clock starts, so Python-side
-preprocessing never ends up in the latency figures.
+The historical ``latency_ms_*`` series times only ``predict_fn``, leaving
+``prepare_fn`` outside that timer. With ``include_stage_latencies=True``,
+the same inference also captures ``prepare + predict`` and the preparation
+time separately. All series use the same calls and samples. This "end-to-end"
+boundary starts with a *loaded and dataset-preprocessed* example: it excludes
+dataset loading, image resizing, raw-text tokenization, decision decoding,
+and model initialization.
 
 Memory is not measured here. A process that has already loaded the model shows no
 RSS change while it runs inferences, so the loop has nothing meaningful to report.
@@ -35,6 +38,7 @@ def benchmark_inference(
     decision_fn: Callable[[Any], int],
     prepare_fn: Callable[[Any], Any] | None = None,
     include_latencies: bool = False,
+    include_stage_latencies: bool = False,
 ) -> dict[str, Any]:
     n = min(num_samples, len(samples), len(labels))
     if n <= 0:
@@ -49,13 +53,22 @@ def benchmark_inference(
 
     gc.collect()
     latencies = np.empty(n, dtype=np.float64)
+    prep_latencies = np.empty(n, dtype=np.float64) if include_stage_latencies else None
+    e2e_latencies = np.empty(n, dtype=np.float64) if include_stage_latencies else None
     predictions: list[int] = []
 
     for i in range(n):
-        sample = prepared(i)  # outside the timed block
-        t0 = time.perf_counter()
+        # This outer timer includes runner.prepare + runner.invoke, but *not*
+        # the already-loaded dataset or post-inference decision decoding.
+        start = time.perf_counter() if include_stage_latencies else None
+        sample = prepared(i)
+        model_start = time.perf_counter()
         out = predict_fn(sample)
-        latencies[i] = (time.perf_counter() - t0) * 1000.0
+        model_end = time.perf_counter()
+        latencies[i] = (model_end - model_start) * 1000.0
+        if start is not None and prep_latencies is not None and e2e_latencies is not None:
+            prep_latencies[i] = (model_start - start) * 1000.0
+            e2e_latencies[i] = (model_end - start) * 1000.0
         predictions.append(decision_fn(out))
 
     correct = sum(p == int(labels[i]) for i, p in enumerate(predictions))
@@ -69,4 +82,9 @@ def benchmark_inference(
     }
     if include_latencies:
         result["latencies_ms"] = latencies
+    if prep_latencies is not None and e2e_latencies is not None:
+        # Exact per-call arrays are retained for the shared repeated-pass
+        # estimator; the public CSV stores only aggregates.
+        result["prep_latencies_ms"] = prep_latencies
+        result["e2e_latencies_ms"] = e2e_latencies
     return result
