@@ -40,7 +40,7 @@ def test_pack_verify_and_install_exact_bytes(tmp_path: Path) -> None:
     data = json.loads(manifest.read_text(encoding="utf-8"))
     assert len(data["files"]) == 2
     assert data["pipelines"] == ["ffn_mnist"]
-    assert set(entry["variant"] for entry in data["files"]) == {"fp32", "int8"}
+    assert {entry["variant"] for entry in data["files"]} == {"fp32", "int8"}
     assert verify_bundle("ffn_mnist", bundle) == data
 
     target = tmp_path / "destination" / "artifacts"
