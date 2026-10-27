@@ -97,7 +97,6 @@ def _featured_pairs(df: pd.DataFrame, arch: str) -> list[tuple[str, pd.Series, p
         candidates = []
         for run_id, sub in native[native["pipeline"] == p].groupby("run_id", sort=False):
             fp, q = sub[sub["variant"] == "fp32"], sub[sub["variant"] != "fp32"]
-            ]
             if fp.empty or q.empty:
                 continue
             latest = max(sub["timestamp"].astype(str)) if "timestamp" in sub else ""
@@ -118,7 +117,7 @@ def wilson_halfwidth(accuracy: float, n: int, z: float = 1.96) -> float:
 
 
 def headline_arch(df: pd.DataFrame) -> str:
-    """The architecture the README table shows: the one with the most rows, x86_64 on a tie."""
+    """Featured architecture: most distinct pipelines, x86_64 on a tie."""
     # Repeating the same machine must not bias the featured architecture.
     counts = df.groupby("arch")["pipeline"].nunique()
     top = sorted(counts[counts == counts.max()].index)
