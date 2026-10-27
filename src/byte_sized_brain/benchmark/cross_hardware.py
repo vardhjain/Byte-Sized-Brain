@@ -57,7 +57,9 @@ def compare_results(x86: Path, arm: Path) -> list[dict[str, Any]]:
         for variant, expected in hashes.items():
             left, right = a[variant], b[variant]
             if left["model_sha256"] != expected or right["model_sha256"] != expected:
-                raise ValueError(f"Model bytes differ across architectures for {pipeline}/{variant}")
+                raise ValueError(
+                    f"Model bytes differ across architectures for {pipeline}/{variant}"
+                )
             if left["num_samples"] != right["num_samples"]:
                 raise ValueError(f"Test sample counts differ for {pipeline}/{variant}")
             summary.append(
