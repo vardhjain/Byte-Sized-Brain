@@ -126,3 +126,28 @@ jobs:
           path: results-cross-hardware/
           if-no-files-found: error
           retention-days: 30
+
+  verify-comparison:
+    name: Verify x86 and ARM64 used identical model digests
+    needs: measure
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install local package without ML dependencies
+        run: pip install --no-deps -e .
+      - uses: actions/download-artifact@v8
+        with:
+          name: results-x86_64
+          path: paired-results/x86
+      - uses: actions/download-artifact@v8
+        with:
+          name: results-aarch64
+          path: paired-results/arm
+      - name: Assert byte-identical model files and equal evaluation sample counts
+        run: python -m byte_sized_brain.benchmark.cross_hardware paired-results/x86 paired-results/arm
