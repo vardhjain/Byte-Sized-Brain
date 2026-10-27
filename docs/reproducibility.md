@@ -35,6 +35,13 @@ Especially useful tests to inspect:
 
 The tests check **implementation correctness**, not new hardware performance.
 
+The measured-variant [recommender](recommender.md) can also run on these
+CSVs without loading any models:
+
+```bash
+bsb recommend ffn_mnist --max-size-mb 0.2 --max-accuracy-drop-pts 1
+```
+
 ## 2. Inspect the historical evidence
 
 The benchmark inputs for the documentation are the committed files under
