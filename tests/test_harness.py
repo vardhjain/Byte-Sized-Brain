@@ -157,15 +157,15 @@ def test_preparation_and_model_timing_are_from_the_same_calls(monkeypatch) -> No
 
 
 def test_stage_timers_are_optional_and_do_not_change_legacy_output() -> None:
-    common = dict(
-        predict_fn=lambda sample: sample,
-        samples=[1, 2],
-        labels=[1, 2],
-        num_samples=2,
-        warmup=0,
-        decision_fn=int,
-        prepare_fn=lambda sample: sample,
-    )
+    common = {
+        "predict_fn": lambda sample: sample,
+        "samples": [1, 2],
+        "labels": [1, 2],
+        "num_samples": 2,
+        "warmup": 0,
+        "decision_fn": int,
+        "prepare_fn": lambda sample: sample,
+    }
     old = benchmark_inference(**common)
     assert "latencies_ms" not in old
     assert "prep_latencies_ms" not in old
