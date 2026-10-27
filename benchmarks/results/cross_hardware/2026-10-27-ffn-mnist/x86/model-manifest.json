@@ -1,0 +1,26 @@
+{
+  "code_revision": "e0fc02dcc063e0ad903cddcb7b474cf3eed363e7",
+  "config_sha256": {
+    "ffn_mnist": "42623c34c85e9a71a83c7aca2e721358a1580b1ad98e8b454f0d41d8b2c8cf37"
+  },
+  "files": [
+    {
+      "bytes": 408828,
+      "path": "artifacts/ffn_mnist/ffn_mnist_fp32.tflite",
+      "pipeline": "ffn_mnist",
+      "sha256": "8d45a4fcf62081fd285ae72c8607c516342edfeb2f363a163a98d92143022ae9",
+      "variant": "fp32"
+    },
+    {
+      "bytes": 107488,
+      "path": "artifacts/ffn_mnist/ffn_mnist_int8.tflite",
+      "pipeline": "ffn_mnist",
+      "sha256": "97b9ede664c2e7da8e40faf0b7b5659421a267a64c7c6e3c2eeed30fbe56aecf",
+      "variant": "int8"
+    }
+  ],
+  "format_version": 1,
+  "pipelines": [
+    "ffn_mnist"
+  ]
+}
