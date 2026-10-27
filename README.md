@@ -191,6 +191,25 @@ results. Smoke models are barely trained, so their accuracy numbers mean nothing
 bsb run all --smoke
 ```
 
+### Compare x86 and ARM using exactly the same model files
+
+For an apples-to-apples hardware experiment, start the manual
+[Cross-hardware benchmark workflow](.github/workflows/arm-benchmark.yml)
+from the GitHub **Actions** tab. It trains/converts a model **once** on x86,
+uploads the inference artifacts with SHA-256 checksums, then benchmarks the
+identical files on native x86 and ARM64 GitHub-hosted runners. A final gate
+checks that model hashes and test sample counts match; each CSV row also
+records its `model_sha256`.
+
+The default `ffn_mnist` selection is relatively inexpensive; other models,
+especially full `distilbert_imdb` training, take substantially longer.
+The workflow is **manual only**, and uses account GitHub Actions/storage
+allowances (not a paid GPU service). Download the separately labeled
+`results-x86_64` and `results-aarch64` artifacts after a successful run.
+These are not automatically mixed into the historical results: the earlier
+ARM64 measurements used separately trained models. See the
+[methodology](docs/methodology.md#3-running-on-arm64) for limitations.
+
 ### Measure variability, not just one timing run
 
 You can opt into repeated passes for a more defensible latency comparison:
