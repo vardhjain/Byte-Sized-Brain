@@ -15,7 +15,7 @@
 
 # A fixed Python patch release and Debian release keep rebuilds comparable.
 # Dependabot proposes updates (see .github/dependabot.yml).
-FROM python:3.11.17-slim-trixie
+FROM python:3.11.18-slim-trixie
 
 LABEL org.opencontainers.image.title="byte-sized-brain" \
       org.opencontainers.image.description="Post-training quantization benchmarks (x86_64)" \

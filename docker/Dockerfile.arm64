@@ -26,7 +26,7 @@
 
 # A fixed Python patch release and Debian release keep rebuilds comparable.
 # Dependabot proposes updates (see .github/dependabot.yml).
-FROM python:3.11.17-slim-trixie
+FROM python:3.11.18-slim-trixie
 
 RUN if [ "$(uname -m)" != "aarch64" ]; then \
         echo "Dockerfile.arm64 targets linux/arm64 but this build runs on $(uname -m)." >&2; \
